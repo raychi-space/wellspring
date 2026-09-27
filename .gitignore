@@ -1,0 +1,13 @@
+.DS_Store
+target/
+.gradle/
+build/
+.env*
+!.env.example
+*.log
+*.db
+*.db-*
+/data/
+/uploads/
+/.idea/
+*.iml
