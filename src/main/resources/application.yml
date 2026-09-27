@@ -1,0 +1,28 @@
+server:
+  port: ${RAYCHI_API_PORT:8080}
+  servlet:
+    session:
+      cookie:
+        name: RAYCHI_SESSION
+        http-only: true
+        same-site: lax
+        secure: ${RAYCHI_COOKIE_SECURE:false}
+spring:
+  datasource:
+    url: ${RAYCHI_DB_URL:jdbc:mysql://localhost:3307/raychi?connectionTimeZone=UTC}
+    username: ${RAYCHI_DB_USER:raychi}
+    password: ${RAYCHI_DB_PASSWORD:}
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
+  jackson:
+    time-zone: UTC
+raychi:
+  assets:
+    dir: ${RAYCHI_ASSET_DIR:./data/assets}
+  admin:
+    username: ${RAYCHI_ADMIN_USER:}
+    password-hash: ${RAYCHI_ADMIN_PASSWORD_HASH:}

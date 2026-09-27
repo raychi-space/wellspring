@@ -1,0 +1,19 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: raychi
+      MYSQL_USER: raychi
+      MYSQL_PASSWORD: ${RAYCHI_DB_PASSWORD:?Set RAYCHI_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${RAYCHI_DB_ROOT_PASSWORD:?Set RAYCHI_DB_ROOT_PASSWORD}
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - raychi-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u raychi -p$$MYSQL_PASSWORD"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+volumes:
+  raychi-mysql:
