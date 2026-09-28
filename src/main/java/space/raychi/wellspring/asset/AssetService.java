@@ -1,4 +1,6 @@
-package space.raychi.wellspring;
+package space.raychi.wellspring.asset;
+
+import space.raychi.wellspring.api.ApiException;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
@@ -37,9 +39,12 @@ public class AssetService {
     private record ImageMeta(String mediaType, int width, int height) {}
 
     public Uploaded upload(String articleId, MultipartFile file) {
-        Integer articleCount = db.queryForObject("SELECT COUNT(*) FROM articles WHERE id=?", Integer.class, articleId);
-        if (articleCount == null || articleCount == 0)
+        List<String> types = db.query("SELECT content_type FROM articles WHERE id=?",
+                (rs, row) -> rs.getString(1), articleId);
+        if (types.isEmpty())
             throw new ApiException(HttpStatus.NOT_FOUND, "ARTICLE_NOT_FOUND", "文章不存在。");
+        if (!types.getFirst().equals("ARTICLE"))
+            throw new ApiException(HttpStatus.BAD_REQUEST, "ASSET_INVALID", "帖子和思考不支持图片上传。");
         if (file == null || file.isEmpty())
             throw new ApiException(HttpStatus.BAD_REQUEST, "ASSET_INVALID", "请选择图片。");
         if (file.getSize() > 10 * 1024 * 1024)

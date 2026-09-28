@@ -1,4 +1,6 @@
-package space.raychi.wellspring;
+package space.raychi.wellspring.asset;
+
+import space.raychi.wellspring.api.ApiException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.CacheControl;

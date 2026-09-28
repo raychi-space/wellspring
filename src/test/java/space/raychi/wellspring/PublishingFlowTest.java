@@ -1,5 +1,10 @@
 package space.raychi.wellspring;
 
+import space.raychi.wellspring.article.ArticleService;
+import space.raychi.wellspring.article.TaxonomyController;
+import space.raychi.wellspring.asset.AssetService;
+import space.raychi.wellspring.api.ApiException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -32,9 +37,11 @@ class PublishingFlowTest {
 
     @Autowired ArticleService articles;
     @Autowired AssetService assets;
+    @Autowired TaxonomyController taxonomy;
 
     @Test
     void draftImagesBecomePublicOnlyWithThePublishedSnapshot() throws Exception {
+        taxonomy.createTag(new TaxonomyController.Name("记录"));
         var draft = articles.create(null);
         byte[] png = image();
         var first = assets.upload(draft.id(), new MockMultipartFile("file", "one.png", "image/png", png));
