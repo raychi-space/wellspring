@@ -6,8 +6,10 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +46,18 @@ class ContentFlowTest {
     @Autowired SiteSettingsController settings;
     @Autowired AssetService assets;
     @Autowired MockMvc mvc;
+    @Autowired ObjectMapper json;
+
+    @Test
+    @WithMockUser
+    void staleSettingsSaveReturnsConflictOverHttp() throws Exception {
+        String staleInput = json.writeValueAsString(settings.adminSettings());
+        mvc.perform(put("/api/v1/admin/settings").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(staleInput)).andExpect(status().isOk());
+        mvc.perform(put("/api/v1/admin/settings").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(staleInput)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("SETTINGS_VERSION_CONFLICT"));
+    }
 
     @Test
     @WithMockUser
