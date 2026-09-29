@@ -100,14 +100,22 @@ public class ArticleService {
                 !Objects.equals(r.draftTags(), r.publicTags()) ||
                 !Objects.equals(r.draftCover(), r.publicCover()) ||
                 !Objects.equals(r.draftCategory(), r.publicCategory());
-        return new AdminArticle(r.id(), r.slug(), r.type(), r.status(), r.version(), r.draftTitle(), r.draftSummary(),
-                r.draftBody(), tags(r.draftTags()), r.draftCover(), r.draftCategory(), changed,
+        return new AdminArticle(r.id(), r.slug(), displayType(r.type()), r.status(), r.version(), r.draftTitle(), r.draftSummary(),
+                r.draftBody(), tags(r.draftTags()), r.draftCover(), displayCategory(r.type(), r.draftCategory()), changed,
                 r.createdAt(), r.updatedAt(), r.publishedAt(), r.publicUpdatedAt());
     }
 
     private PublicArticle published(Row r) {
-        return new PublicArticle(r.id(), r.slug(), r.type(), r.publicTitle(), r.publicSummary(), r.publicBody(),
-                tags(r.publicTags()), r.publicCover(), r.publicCategory(), r.publishedAt(), r.publicUpdatedAt());
+        return new PublicArticle(r.id(), r.slug(), displayType(r.type()), r.publicTitle(), r.publicSummary(), r.publicBody(),
+                tags(r.publicTags()), r.publicCover(), displayCategory(r.type(), r.publicCategory()), r.publishedAt(), r.publicUpdatedAt());
+    }
+
+    private static String displayType(String storedType) {
+        return "THOUGHT".equals(storedType) ? "POST" : storedType;
+    }
+
+    private static String displayCategory(String storedType, String category) {
+        return "THOUGHT".equals(storedType) ? null : category;
     }
 
     private static ApiException bad(String message) {
@@ -182,10 +190,11 @@ public class ArticleService {
     @Transactional
     public AdminArticle create(String contentType, ArticleInput input) {
         String kind = type(contentType);
+        if (kind.equals("THOUGHT")) throw bad("现在只支持创建文章和帖子。");
         String id = UUID.randomUUID().toString();
         String slug = kind.equals("ARTICLE")
                 ? (input == null || input.slug() == null || input.slug().isBlank() ? "draft-" + id : input.slug().trim())
-                : (kind.equals("POST") ? "post-" : "thought-") + id;
+                : "post-" + id;
         validateSlug(slug);
         String title = input == null ? "" : shortValue(input.title(), 255, "标题");
         String summary = input == null ? "" : shortValue(input.summary(), 600, "摘要");
@@ -215,10 +224,11 @@ public class ArticleService {
     public Page<AdminArticle> listAdmin(int page, int pageSize, String status, String contentType) {
         pagination(page, pageSize);
         if (status != null && !status.isBlank() && !List.of("DRAFT", "PUBLISHED").contains(status)) throw bad("无效的内容状态。");
-        String where = " WHERE 1=1" + (contentType == null ? "" : " AND content_type=?") +
+        String where = " WHERE 1=1" + (contentType == null ? "" : contentType.equals("POST")
+                ? " AND content_type IN ('POST','THOUGHT')" : " AND content_type=?") +
                 (status == null || status.isBlank() ? "" : " AND status=?");
         List<Object> args = new ArrayList<>();
-        if (contentType != null) args.add(type(contentType));
+        if (contentType != null && !contentType.equals("POST")) args.add(type(contentType));
         if (status != null && !status.isBlank()) args.add(status);
         long total = db.queryForObject("SELECT COUNT(*) FROM articles" + where, Long.class, args.toArray());
         String sql = "SELECT * FROM articles" + where + " ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?";
@@ -239,10 +249,11 @@ public class ArticleService {
     @Transactional(readOnly = true)
     public Page<PublicArticle> listPublic(int page, int pageSize, String contentType, String category, String tag) {
         pagination(page, pageSize);
-        String where = " WHERE status='PUBLISHED'" + (contentType == null ? "" : " AND content_type=?") +
-                (category == null || category.isBlank() ? "" : " AND public_category=?");
+        String where = " WHERE status='PUBLISHED'" + (contentType == null ? "" : contentType.equals("POST")
+                ? " AND content_type IN ('POST','THOUGHT')" : " AND content_type=?") +
+                (category == null || category.isBlank() ? "" : " AND content_type='ARTICLE' AND public_category=?");
         List<Object> args = new ArrayList<>();
-        if (contentType != null) args.add(type(contentType));
+        if (contentType != null && !contentType.equals("POST")) args.add(type(contentType));
         if (category != null && !category.isBlank()) args.add(category);
         // Tags are JSON arrays from v0.1; filter after reading to avoid dialect-specific JSON SQL.
         List<Row> rows = db.query("SELECT * FROM articles" + where + " ORDER BY published_at DESC, id DESC",
@@ -264,8 +275,10 @@ public class ArticleService {
 
     @Transactional(readOnly = true)
     public PublicArticle getPublic(String contentType, String slug) {
-        List<Row> rows = db.query("SELECT * FROM articles WHERE content_type=? AND slug=? AND status='PUBLISHED'",
-                ArticleService::map, type(contentType), slug);
+        String kind = type(contentType);
+        List<Row> rows = db.query("SELECT * FROM articles WHERE " + (kind.equals("POST")
+                        ? "content_type IN ('POST','THOUGHT')" : "content_type=?") + " AND slug=? AND status='PUBLISHED'",
+                ArticleService::map, kind.equals("POST") ? new Object[]{slug} : new Object[]{kind, slug});
         if (rows.isEmpty()) throw new ApiException(HttpStatus.NOT_FOUND, "ARTICLE_NOT_FOUND", "文章不存在。");
         return published(rows.getFirst());
     }
@@ -280,15 +293,17 @@ public class ArticleService {
         String title = shortValue(input.title(), 255, "标题");
         String summary = shortValue(input.summary(), 600, "摘要");
         String markdown = body(input.bodyMarkdown());
-        String tagData = checkedTags(current.type(), input.tags(), current.draftTags());
+        String effectiveType = displayType(current.type());
+        String tagData = checkedTags(effectiveType, input.tags(), current.draftTags());
         validateCover(input.coverUrl());
-        noImages(current.type(), markdown, input.coverUrl());
-        String selectedCategory = category(current.type(), input.category() == null
-                ? current.draftCategory() : input.category());
+        noImages(effectiveType, markdown, input.coverUrl());
+        String selectedCategory = category(effectiveType, input.category() == null
+                ? displayCategory(current.type(), current.draftCategory()) : input.category());
         db.update("""
-            UPDATE articles SET slug=?,draft_title=?,draft_summary=?,draft_body=?,draft_tags=?,draft_cover=?,draft_category=?,
+            UPDATE articles SET content_type=?,slug=?,draft_title=?,draft_summary=?,draft_body=?,draft_tags=?,draft_cover=?,draft_category=?,public_category=?,
             version=version+1,updated_at=? WHERE id=?
-            """, slug, title, summary, markdown, tagData, input.coverUrl(), selectedCategory, Timestamp.from(Instant.now()), id);
+            """, effectiveType, slug, title, summary, markdown, tagData, input.coverUrl(), selectedCategory,
+                displayCategory(current.type(), current.publicCategory()), Timestamp.from(Instant.now()), id);
         return getAdmin(id);
     }
 
@@ -308,11 +323,13 @@ public class ArticleService {
         }
         Instant now = Instant.now();
         db.update("""
-            UPDATE articles SET status='PUBLISHED', public_title=draft_title, public_summary=draft_summary,
-            public_body=draft_body, public_tags=draft_tags, public_cover=draft_cover, public_category=draft_category,
+            UPDATE articles SET content_type=?,draft_category=?,status='PUBLISHED', public_title=draft_title, public_summary=draft_summary,
+            public_body=draft_body, public_tags=draft_tags, public_cover=draft_cover, public_category=?,
             published_at=COALESCE(published_at, ?), public_updated_at=?, version=version+1, updated_at=?
             WHERE id=?
-            """, Timestamp.from(now), Timestamp.from(now), Timestamp.from(now), id);
+            """, displayType(current.type()), displayCategory(current.type(), current.draftCategory()),
+                displayCategory(current.type(), current.draftCategory()),
+                Timestamp.from(now), Timestamp.from(now), Timestamp.from(now), id);
         db.update("DELETE FROM published_assets WHERE article_id=?", id);
         for (String assetId : assetIds)
             db.update("INSERT INTO published_assets (article_id,asset_id) VALUES (?,?)", id, assetId);
