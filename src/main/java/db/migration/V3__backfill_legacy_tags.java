@@ -19,6 +19,8 @@ public class V3__backfill_legacy_tags extends BaseJavaMigration {
 
     @Override
     public void migrate(Context context) throws Exception {
+        TagNameCollation.preserveCaseDistinctNames(context.getConnection());
+
         Set<String> names = new LinkedHashSet<>();
         try (Statement statement = context.getConnection().createStatement();
              ResultSet rows = statement.executeQuery("SELECT name FROM tags")) {
