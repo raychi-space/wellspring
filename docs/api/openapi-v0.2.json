@@ -1974,6 +1974,15 @@
           "href": {"type": "string", "maxLength": 500}
         }
       },
+      "SocialAccount": {
+        "type": "object",
+        "required": ["platform", "enabled", "href"],
+        "properties": {
+          "platform": {"type": "string", "enum": ["github", "x", "bilibili", "youtube", "zhihu", "juejin", "xiaohongshu", "mastodon"]},
+          "enabled": {"type": "boolean"},
+          "href": {"type": "string", "maxLength": 500}
+        }
+      },
       "HomepageSettings": {
         "type": "object",
         "required": ["focus", "projects", "recentSections", "bottomSections"],
@@ -2029,6 +2038,12 @@
               "$ref": "#/components/schemas/SiteLink"
             }
           },
+          "socialAccounts": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {"$ref": "#/components/schemas/SocialAccount"}
+          },
+          "projectIntro": {"type": "string", "maxLength": 240},
           "navigation": {
             "type": "array",
             "items": {
@@ -2042,7 +2057,7 @@
             }
           },
           "homepage": {
-            "description": "首页展示设置；旧版请求可省略，读取时始终返回默认或已保存值。",
+            "description": "首页展示设置；旧版请求可省略，读取时返回数据库中已保存的值。",
             "$ref": "#/components/schemas/HomepageSettings"
           }
         }

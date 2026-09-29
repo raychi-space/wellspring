@@ -36,8 +36,8 @@
 
 ## 站点配置
 
-`siteName`、`intro`、可空 `avatarUrl`、`contacts`、`accounts`、`navigation`、`homeSections` 和 `homepage` 是一份独立配置。前三种链接列表的元素为 `{label, href}`；链接只允许站内 `/路径`、HTTP(S) 或 `mailto:`。旧版 `homeSections` 固定为 `feed`、`writing`、`posts`、`thoughts` 四个，保留以兼容旧客户端。新首页使用 `homepage`：`focus` 为个人方向，`projects` 为最多三个 `{name, description, status, href}` 项目；`recentSections` 固定包含 `featured`、`posts`、`writing`，`bottomSections` 固定包含 `projects`、`stats`，各区块恰好出现一次，数组顺序决定展示顺序，`visible` 决定是否显示。项目链接只允许站内路径或 HTTP(S)。旧记录未含 `homepage` 时读取接口会补上默认方向、三个公开仓库和默认区块顺序；旧客户端保存时省略 `homepage` 会保留当前配置。旧导航中的 `/thoughts` 在读取时隐藏，默认“长文”标签显示为“文章”。文章、帖子数字仍根据已发布内容自动计算。配置没有工作稿/发布步骤；保存不读取或改动内容工作稿。头像使用站长指定的安全 URL，本版没有头像上传接口。
+`siteName`、`intro`、可空 `avatarUrl`、`contacts`、`accounts`、`navigation`、`homeSections`、`homepage`、`projectIntro` 和 `socialAccounts` 是一份独立配置。前三种链接列表的元素为 `{label, href}`；链接只允许站内 `/路径`、HTTP(S) 或 `mailto:`。旧版 `homeSections` 固定为 `feed`、`writing`、`posts`、`thoughts` 四个，保留以兼容旧客户端。新首页使用 `homepage`：`focus` 为个人方向，`projects` 为最多三个 `{name, description, status, href}` 项目；`recentSections` 固定包含 `featured`、`posts`、`writing`，`bottomSections` 固定包含 `projects`、`stats`，各区块恰好出现一次，数组顺序决定展示顺序，`visible` 决定是否显示。项目说明由 `projectIntro` 保存。项目链接只允许站内路径或 HTTP(S)。`socialAccounts` 保存最多八个 `{platform, enabled, href}`，平台为 `github`、`x`、`bilibili`、`youtube`、`zhihu`、`juejin`、`xiaohongshu`、`mastodon`；开启的平台须填写 HTTP(S) 链接。旧 `accounts` 中同名平台会在读取时转换为图标账户，保存新配置后写入 `socialAccounts`。旧客户端保存时省略新增字段会保留当前配置。公开导航读取数据库中配置的首页、帖子、文章和回顾标签；V5 把旧默认“长文”改为“文章”。文章、帖子数字仍根据已发布内容自动计算。配置没有工作稿/发布步骤；保存不读取或改动内容工作稿。头像使用站长指定的安全 URL，本版没有头像上传接口。
 
 ## 数据迁移和兼容
 
-Flyway V2 在原 `articles` 表增加类型与分类字段，不改变原 ID、slug、正文、发布快照或附件关联。既有记录是 `ARTICLE`，分类回填 `未分类`；原有标签字符串继续可读、继续编辑，新增标签名须先创建。新表保存分类、标签目录和站点配置。v0.1 的 `/public/articles` 与 `/admin/articles` 仅处理长文，旧前端仍可使用；旧公开文章列表仍不返回正文。迁移前需备份 MySQL；回滚采用备份恢复，不删除 V2 列与表以避免丢失新内容。
+Flyway V2 在原 `articles` 表增加类型与分类字段，不改变原 ID、slug、正文、发布快照或附件关联。既有记录是 `ARTICLE`，分类回填 `未分类`；原有标签字符串继续可读、继续编辑，新增标签名须先创建。新表保存分类、标签目录和站点配置。V5 为旧站点配置补上首页默认资料，并把项目说明与平台账户列表写入数据库；已有首页项目和介绍会保留。v0.1 的 `/public/articles` 与 `/admin/articles` 仅处理长文，旧前端仍可使用；旧公开文章列表仍不返回正文。迁移前需备份 MySQL；回滚采用备份恢复，不删除 V2 列与表以避免丢失新内容。

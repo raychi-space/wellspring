@@ -102,6 +102,7 @@ class ContentFlowTest {
     void homepageSettingsCanBeEditedAndRejectInvalidProjects() {
         var initial = settings.publicSettings();
         assertThat(initial.homepage().recentSections()).hasSize(3);
+        assertThat(initial.projectIntro()).isNotBlank();
         var homepage = new SiteSettingsController.Homepage("正在做的事", List.of(
                 new SiteSettingsController.Project("Raychi", "个人网站", "进行中", "https://github.com/raychi-space/raychi")),
                 List.of(new SiteSettingsController.Section("posts", true),
@@ -109,18 +110,41 @@ class ContentFlowTest {
                         new SiteSettingsController.Section("writing", true)),
                 List.of(new SiteSettingsController.Section("stats", true),
                         new SiteSettingsController.Section("projects", true)));
+        var socialAccounts = List.of(new SiteSettingsController.SocialAccount("github", true,
+                "https://github.com/raychi-space"));
         var saved = settings.save(new SiteSettingsController.Settings(initial.version(), initial.siteName(),
                 initial.intro(), initial.avatarUrl(), initial.contacts(), initial.accounts(), initial.navigation(),
-                initial.homeSections(), homepage));
+                initial.homeSections(), homepage, "最近的工作", socialAccounts));
         assertThat(settings.publicSettings().homepage()).isEqualTo(homepage);
+        assertThat(settings.publicSettings().projectIntro()).isEqualTo("最近的工作");
+        assertThat(settings.publicSettings().socialAccounts()).isEqualTo(socialAccounts);
         var legacySaved = settings.save(new SiteSettingsController.Settings(saved.version(), saved.siteName(),
                 "旧客户端更新", saved.avatarUrl(), saved.contacts(), saved.accounts(), saved.navigation(),
                 saved.homeSections()));
         assertThat(legacySaved.homepage()).isEqualTo(homepage);
+        assertThat(legacySaved.socialAccounts()).isEqualTo(socialAccounts);
         assertThatThrownBy(() -> settings.save(new SiteSettingsController.Settings(legacySaved.version(), legacySaved.siteName(),
                 legacySaved.intro(), legacySaved.avatarUrl(), legacySaved.contacts(), legacySaved.accounts(), legacySaved.navigation(),
                 legacySaved.homeSections(), new SiteSettingsController.Homepage("", List.of(
                 new SiteSettingsController.Project("Bad", "", "进行中", "javascript:alert(1)")),
                 homepage.recentSections(), homepage.bottomSections())))).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> settings.save(new SiteSettingsController.Settings(legacySaved.version(), legacySaved.siteName(),
+                legacySaved.intro(), legacySaved.avatarUrl(), legacySaved.contacts(), legacySaved.accounts(), legacySaved.navigation(),
+                legacySaved.homeSections(), homepage, "", List.of(new SiteSettingsController.SocialAccount(
+                "github", true, "javascript:alert(1)"))))).isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    void legacyPlatformLinkAppearsAsIconAccount() {
+        var initial = settings.publicSettings();
+        var saved = settings.save(new SiteSettingsController.Settings(initial.version(), initial.siteName(), initial.intro(),
+                initial.avatarUrl(), initial.contacts(), List.of(new SiteSettingsController.Link("GitHub", "https://github.com/example")),
+                initial.navigation(), initial.homeSections(), initial.homepage(), initial.projectIntro(), List.of()));
+        assertThat(saved.accounts()).isEmpty();
+        assertThat(saved.socialAccounts()).contains(new SiteSettingsController.SocialAccount(
+                "github", true, "https://github.com/example"));
+        settings.save(saved);
+        assertThat(settings.publicSettings().socialAccounts()).contains(new SiteSettingsController.SocialAccount(
+                "github", true, "https://github.com/example"));
     }
 }
