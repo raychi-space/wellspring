@@ -1,4 +1,4 @@
-package space.raychi.wellspring;
+package space.raychi.wellspring.api;
 
 import java.util.List;
 import java.util.UUID;

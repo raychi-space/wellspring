@@ -1,4 +1,6 @@
-package space.raychi.wellspring;
+package space.raychi.wellspring.article;
+
+import space.raychi.wellspring.api.ApiException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -38,20 +40,26 @@ public class ArticleService {
     }
 
     public record ArticleInput(Long version, String slug, String title, String summary,
-                               String bodyMarkdown, List<String> tags, String coverUrl) {}
+                               String bodyMarkdown, List<String> tags, String coverUrl, String category) {
+        public ArticleInput(Long version, String slug, String title, String summary,
+                            String bodyMarkdown, List<String> tags, String coverUrl) {
+            this(version, slug, title, summary, bodyMarkdown, tags, coverUrl, null);
+        }
+    }
     public record VersionInput(Long expectedVersion) {}
-    public record AdminArticle(String id, String slug, String status, long version,
+    public record AdminArticle(String id, String slug, String type, String status, long version,
                                String title, String summary, String bodyMarkdown, List<String> tags,
-                               String coverUrl, boolean hasUnpublishedChanges,
+                               String coverUrl, String category, boolean hasUnpublishedChanges,
                                Instant createdAt, Instant updatedAt, Instant publishedAt, Instant publicUpdatedAt) {}
-    public record PublicArticle(String id, String slug, String title, String summary,
-                                String bodyMarkdown, List<String> tags, String coverUrl,
+    public record PublicArticle(String id, String slug, String type, String title, String summary,
+                                String bodyMarkdown, List<String> tags, String coverUrl, String category,
                                 Instant publishedAt, Instant publicUpdatedAt) {}
     public record Page<T>(List<T> items, int page, int pageSize, long total) {}
 
-    private record Row(String id, String slug, String status, long version,
+    private record Row(String id, String slug, String type, String status, long version,
                        String draftTitle, String draftSummary, String draftBody, String draftTags, String draftCover,
-                       String publicTitle, String publicSummary, String publicBody, String publicTags, String publicCover,
+                       String draftCategory, String publicTitle, String publicSummary, String publicBody,
+                       String publicTags, String publicCover, String publicCategory,
                        Instant createdAt, Instant updatedAt, Instant publishedAt, Instant publicUpdatedAt) {}
 
     private static Instant instant(ResultSet rs, String column) throws SQLException {
@@ -60,11 +68,11 @@ public class ArticleService {
     }
 
     private static Row map(ResultSet rs, int rowNum) throws SQLException {
-        return new Row(rs.getString("id"), rs.getString("slug"), rs.getString("status"), rs.getLong("version"),
+        return new Row(rs.getString("id"), rs.getString("slug"), rs.getString("content_type"), rs.getString("status"), rs.getLong("version"),
                 rs.getString("draft_title"), rs.getString("draft_summary"), rs.getString("draft_body"),
-                rs.getString("draft_tags"), rs.getString("draft_cover"), rs.getString("public_title"),
+                rs.getString("draft_tags"), rs.getString("draft_cover"), rs.getString("draft_category"), rs.getString("public_title"),
                 rs.getString("public_summary"), rs.getString("public_body"), rs.getString("public_tags"),
-                rs.getString("public_cover"), instant(rs, "created_at"), instant(rs, "updated_at"),
+                rs.getString("public_cover"), rs.getString("public_category"), instant(rs, "created_at"), instant(rs, "updated_at"),
                 instant(rs, "published_at"), instant(rs, "public_updated_at"));
     }
 
@@ -90,15 +98,16 @@ public class ArticleService {
                 !Objects.equals(r.draftSummary(), r.publicSummary()) ||
                 !Objects.equals(r.draftBody(), r.publicBody()) ||
                 !Objects.equals(r.draftTags(), r.publicTags()) ||
-                !Objects.equals(r.draftCover(), r.publicCover());
-        return new AdminArticle(r.id(), r.slug(), r.status(), r.version(), r.draftTitle(), r.draftSummary(),
-                r.draftBody(), tags(r.draftTags()), r.draftCover(), changed,
+                !Objects.equals(r.draftCover(), r.publicCover()) ||
+                !Objects.equals(r.draftCategory(), r.publicCategory());
+        return new AdminArticle(r.id(), r.slug(), r.type(), r.status(), r.version(), r.draftTitle(), r.draftSummary(),
+                r.draftBody(), tags(r.draftTags()), r.draftCover(), r.draftCategory(), changed,
                 r.createdAt(), r.updatedAt(), r.publishedAt(), r.publicUpdatedAt());
     }
 
     private PublicArticle published(Row r) {
-        return new PublicArticle(r.id(), r.slug(), r.publicTitle(), r.publicSummary(), r.publicBody(),
-                tags(r.publicTags()), r.publicCover(), r.publishedAt(), r.publicUpdatedAt());
+        return new PublicArticle(r.id(), r.slug(), r.type(), r.publicTitle(), r.publicSummary(), r.publicBody(),
+                tags(r.publicTags()), r.publicCover(), r.publicCategory(), r.publishedAt(), r.publicUpdatedAt());
     }
 
     private static ApiException bad(String message) {
@@ -122,23 +131,75 @@ public class ArticleService {
         return result;
     }
 
+    private static String type(String value) {
+        if (!List.of("ARTICLE", "POST", "THOUGHT").contains(value)) throw bad("无效的内容类型。");
+        return value;
+    }
+
+    private String category(String type, String value) {
+        if (type.equals("POST")) {
+            if (value != null && !value.isBlank()) throw bad("帖子不使用分类。");
+            return null;
+        }
+        String name = value == null || value.isBlank() ? "未分类" : shortValue(value, 80, "分类");
+        Integer count = db.queryForObject("SELECT COUNT(*) FROM categories WHERE name=?", Integer.class, name);
+        if (count == null || count == 0) throw bad("分类不存在。");
+        return name;
+    }
+
+    private String checkedTags(String type, List<String> value, String previous) {
+        if (type.equals("THOUGHT")) {
+            if (value != null && !value.isEmpty()) throw bad("思考不使用标签。");
+            return "[]";
+        }
+        String encoded = tagsJson(value);
+        for (String name : tags(encoded)) {
+            Integer count = db.queryForObject("SELECT COUNT(*) FROM tags WHERE name=?", Integer.class, name);
+            if ((count == null || count == 0) && !tags(previous).contains(name)) throw bad("标签不存在：" + name);
+        }
+        return encoded;
+    }
+
+    private static void noImages(String type, String markdown, String cover) {
+        if (type.equals("ARTICLE")) return;
+        if (cover != null && !cover.isBlank()) throw bad("帖子和思考不支持封面。");
+        Node root = MARKDOWN.parse(markdown);
+        List<Node> pending = new ArrayList<>();
+        pending.add(root);
+        while (!pending.isEmpty()) {
+            Node node = pending.removeLast();
+            if (node instanceof Image) throw bad("帖子和思考不支持图片。");
+            for (Node child = node.getFirstChild(); child != null; child = child.getNext()) pending.add(child);
+        }
+        if (markdown.matches("(?is).*<\\s*img\\b.*")) throw bad("帖子和思考不支持图片。");
+    }
+
     @Transactional
     public AdminArticle create(ArticleInput input) {
+        return create("ARTICLE", input);
+    }
+
+    @Transactional
+    public AdminArticle create(String contentType, ArticleInput input) {
+        String kind = type(contentType);
         String id = UUID.randomUUID().toString();
-        String slug = input == null || input.slug() == null || input.slug().isBlank()
-                ? "draft-" + id : input.slug().trim();
+        String slug = kind.equals("ARTICLE")
+                ? (input == null || input.slug() == null || input.slug().isBlank() ? "draft-" + id : input.slug().trim())
+                : (kind.equals("POST") ? "post-" : "thought-") + id;
         validateSlug(slug);
         String title = input == null ? "" : shortValue(input.title(), 255, "标题");
         String summary = input == null ? "" : shortValue(input.summary(), 600, "摘要");
         String markdown = input == null ? "" : body(input.bodyMarkdown());
-        String tagData = tagsJson(input == null ? null : input.tags());
+        String tagData = checkedTags(kind, input == null ? null : input.tags(), null);
         String cover = input == null ? null : input.coverUrl();
         validateCover(cover);
+        noImages(kind, markdown, cover);
+        String selectedCategory = category(kind, input == null ? null : input.category());
         Instant now = Instant.now();
         db.update("""
-            INSERT INTO articles (id,slug,status,version,draft_title,draft_summary,draft_body,draft_tags,draft_cover,created_at,updated_at)
-            VALUES (?,?, 'DRAFT', 0,?,?,?,?,?,?,?)
-            """, id, slug, title, summary, markdown, tagData, cover, Timestamp.from(now), Timestamp.from(now));
+            INSERT INTO articles (id,slug,content_type,status,version,draft_title,draft_summary,draft_body,draft_tags,draft_cover,draft_category,created_at,updated_at)
+            VALUES (?,?,?, 'DRAFT', 0,?,?,?,?,?,?,?,?)
+            """, id, slug, kind, title, summary, markdown, tagData, cover, selectedCategory, Timestamp.from(now), Timestamp.from(now));
         return getAdmin(id);
     }
 
@@ -147,33 +208,64 @@ public class ArticleService {
 
     @Transactional(readOnly = true)
     public Page<AdminArticle> listAdmin(int page, int pageSize, String status) {
+        return listAdmin(page, pageSize, status, "ARTICLE");
+    }
+
+    @Transactional(readOnly = true)
+    public Page<AdminArticle> listAdmin(int page, int pageSize, String status, String contentType) {
         pagination(page, pageSize);
-        String where = status == null || status.isBlank() ? "" : " WHERE status = ?";
-        if (!where.isEmpty() && !List.of("DRAFT", "PUBLISHED").contains(status)) throw bad("无效的文章状态。");
-        long total = where.isEmpty() ? db.queryForObject("SELECT COUNT(*) FROM articles", Long.class)
-                : db.queryForObject("SELECT COUNT(*) FROM articles" + where, Long.class, status);
+        if (status != null && !status.isBlank() && !List.of("DRAFT", "PUBLISHED").contains(status)) throw bad("无效的内容状态。");
+        String where = " WHERE 1=1" + (contentType == null ? "" : " AND content_type=?") +
+                (status == null || status.isBlank() ? "" : " AND status=?");
+        List<Object> args = new ArrayList<>();
+        if (contentType != null) args.add(type(contentType));
+        if (status != null && !status.isBlank()) args.add(status);
+        long total = db.queryForObject("SELECT COUNT(*) FROM articles" + where, Long.class, args.toArray());
         String sql = "SELECT * FROM articles" + where + " ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?";
-        List<Row> rows = where.isEmpty() ? db.query(sql, ArticleService::map, pageSize, (page - 1) * pageSize)
-                : db.query(sql, ArticleService::map, status, pageSize, (page - 1) * pageSize);
+        args.add(pageSize);
+        args.add((page - 1) * pageSize);
+        List<Row> rows = db.query(sql, ArticleService::map, args.toArray());
         return new Page<>(rows.stream().map(this::admin).toList(), page, pageSize, total);
     }
 
     @Transactional(readOnly = true)
     public Page<PublicArticle> listPublic(int page, int pageSize) {
+        Page<PublicArticle> result = listPublic(page, pageSize, "ARTICLE", null, null);
+        return new Page<>(result.items().stream().map(r -> new PublicArticle(r.id(), r.slug(), r.type(),
+                r.title(), r.summary(), null, r.tags(), r.coverUrl(), r.category(),
+                r.publishedAt(), r.publicUpdatedAt())).toList(), result.page(), result.pageSize(), result.total());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PublicArticle> listPublic(int page, int pageSize, String contentType, String category, String tag) {
         pagination(page, pageSize);
-        long total = db.queryForObject("SELECT COUNT(*) FROM articles WHERE status='PUBLISHED'", Long.class);
-        List<PublicArticle> items = db.query("""
-            SELECT * FROM articles WHERE status='PUBLISHED'
-            ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?
-            """, ArticleService::map, pageSize, (page - 1) * pageSize).stream()
-                .map(this::published).map(r -> new PublicArticle(r.id(), r.slug(), r.title(), r.summary(),
-                        null, r.tags(), r.coverUrl(), r.publishedAt(), r.publicUpdatedAt())).toList();
+        String where = " WHERE status='PUBLISHED'" + (contentType == null ? "" : " AND content_type=?") +
+                (category == null || category.isBlank() ? "" : " AND public_category=?");
+        List<Object> args = new ArrayList<>();
+        if (contentType != null) args.add(type(contentType));
+        if (category != null && !category.isBlank()) args.add(category);
+        // Tags are JSON arrays from v0.1; filter after reading to avoid dialect-specific JSON SQL.
+        List<Row> rows = db.query("SELECT * FROM articles" + where + " ORDER BY published_at DESC, id DESC",
+                ArticleService::map, args.toArray());
+        List<PublicArticle> all = rows.stream().map(this::published)
+                .filter(r -> tag == null || tag.isBlank() || r.tags().contains(tag)).toList();
+        long total = all.size();
+        List<PublicArticle> items = all.stream().skip((long) (page - 1) * pageSize).limit(pageSize)
+                .map(r -> new PublicArticle(r.id(), r.slug(), r.type(), r.title(), r.summary(),
+                        r.bodyMarkdown(), r.tags(), r.coverUrl(),
+                        r.category(), r.publishedAt(), r.publicUpdatedAt())).toList();
         return new Page<>(items, page, pageSize, total);
     }
 
     @Transactional(readOnly = true)
     public PublicArticle getPublic(String slug) {
-        List<Row> rows = db.query("SELECT * FROM articles WHERE slug=? AND status='PUBLISHED'", ArticleService::map, slug);
+        return getPublic("ARTICLE", slug);
+    }
+
+    @Transactional(readOnly = true)
+    public PublicArticle getPublic(String contentType, String slug) {
+        List<Row> rows = db.query("SELECT * FROM articles WHERE content_type=? AND slug=? AND status='PUBLISHED'",
+                ArticleService::map, type(contentType), slug);
         if (rows.isEmpty()) throw new ApiException(HttpStatus.NOT_FOUND, "ARTICLE_NOT_FOUND", "文章不存在。");
         return published(rows.getFirst());
     }
@@ -182,18 +274,21 @@ public class ArticleService {
     public AdminArticle save(String id, ArticleInput input) {
         Row current = required(id, true);
         if (input == null || input.version() == null || current.version() != input.version()) throw conflict();
-        String slug = input.slug() == null ? current.slug() : input.slug().trim();
+        String slug = current.type().equals("ARTICLE") && input.slug() != null ? input.slug().trim() : current.slug();
         validateSlug(slug);
         if (current.publishedAt() != null && !current.slug().equals(slug)) throw bad("首次发布后不能修改地址别名。");
         String title = shortValue(input.title(), 255, "标题");
         String summary = shortValue(input.summary(), 600, "摘要");
         String markdown = body(input.bodyMarkdown());
-        String tagData = tagsJson(input.tags());
+        String tagData = checkedTags(current.type(), input.tags(), current.draftTags());
         validateCover(input.coverUrl());
+        noImages(current.type(), markdown, input.coverUrl());
+        String selectedCategory = category(current.type(), input.category() == null
+                ? current.draftCategory() : input.category());
         db.update("""
-            UPDATE articles SET slug=?,draft_title=?,draft_summary=?,draft_body=?,draft_tags=?,draft_cover=?,
+            UPDATE articles SET slug=?,draft_title=?,draft_summary=?,draft_body=?,draft_tags=?,draft_cover=?,draft_category=?,
             version=version+1,updated_at=? WHERE id=?
-            """, slug, title, summary, markdown, tagData, input.coverUrl(), Timestamp.from(Instant.now()), id);
+            """, slug, title, summary, markdown, tagData, input.coverUrl(), selectedCategory, Timestamp.from(Instant.now()), id);
         return getAdmin(id);
     }
 
@@ -201,8 +296,9 @@ public class ArticleService {
     public AdminArticle publish(String id, VersionInput input) {
         Row current = required(id, true);
         checkVersion(input, current);
-        if (current.draftTitle().isBlank() || current.draftBody().isBlank() || current.slug().startsWith("draft-"))
-            throw bad("发布前请填写标题、正文和正式地址别名。");
+        if ((current.type().equals("ARTICLE") && (current.draftTitle().isBlank() || current.slug().startsWith("draft-")))
+                || current.draftBody().isBlank())
+            throw bad("发布前请填写正文；长文还需要标题和正式地址别名。");
         Set<String> assetIds = assetIds(current.draftBody(), current.draftCover());
         for (String assetId : assetIds) {
             Integer count = db.queryForObject("SELECT COUNT(*) FROM assets WHERE id=? AND article_id=?", Integer.class,
@@ -213,7 +309,7 @@ public class ArticleService {
         Instant now = Instant.now();
         db.update("""
             UPDATE articles SET status='PUBLISHED', public_title=draft_title, public_summary=draft_summary,
-            public_body=draft_body, public_tags=draft_tags, public_cover=draft_cover,
+            public_body=draft_body, public_tags=draft_tags, public_cover=draft_cover, public_category=draft_category,
             published_at=COALESCE(published_at, ?), public_updated_at=?, version=version+1, updated_at=?
             WHERE id=?
             """, Timestamp.from(now), Timestamp.from(now), Timestamp.from(now), id);
