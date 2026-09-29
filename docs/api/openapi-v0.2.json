@@ -543,8 +543,7 @@
               "type": "string",
               "enum": [
                 "ARTICLE",
-                "POST",
-                "THOUGHT"
+                "POST"
               ]
             }
           },
@@ -592,8 +591,7 @@
               "type": "string",
               "enum": [
                 "ARTICLE",
-                "POST",
-                "THOUGHT"
+                "POST"
               ]
             }
           },
@@ -646,8 +644,7 @@
               "type": "string",
               "enum": [
                 "ARTICLE",
-                "POST",
-                "THOUGHT"
+                "POST"
               ]
             }
           },
@@ -694,8 +691,7 @@
               "type": "string",
               "enum": [
                 "ARTICLE",
-                "POST",
-                "THOUGHT"
+                "POST"
               ]
             }
           }
@@ -1771,8 +1767,7 @@
             "type": "string",
             "enum": [
               "ARTICLE",
-              "POST",
-              "THOUGHT"
+              "POST"
             ]
           },
           "category": {
@@ -1845,8 +1840,7 @@
             "type": "string",
             "enum": [
               "ARTICLE",
-              "POST",
-              "THOUGHT"
+              "POST"
             ]
           },
           "category": {
@@ -1962,6 +1956,34 @@
           }
         }
       },
+      "HomepageSection": {
+        "type": "object",
+        "required": ["id", "visible"],
+        "properties": {
+          "id": {"type": "string", "enum": ["featured", "posts", "writing", "projects", "stats"]},
+          "visible": {"type": "boolean"}
+        }
+      },
+      "HomepageProject": {
+        "type": "object",
+        "required": ["name", "description", "status", "href"],
+        "properties": {
+          "name": {"type": "string", "maxLength": 80},
+          "description": {"type": "string", "maxLength": 240},
+          "status": {"type": "string", "maxLength": 40},
+          "href": {"type": "string", "maxLength": 500}
+        }
+      },
+      "HomepageSettings": {
+        "type": "object",
+        "required": ["focus", "projects", "recentSections", "bottomSections"],
+        "properties": {
+          "focus": {"type": "string", "maxLength": 160},
+          "projects": {"type": "array", "maxItems": 3, "items": {"$ref": "#/components/schemas/HomepageProject"}},
+          "recentSections": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/components/schemas/HomepageSection"}},
+          "bottomSections": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/components/schemas/HomepageSection"}}
+        }
+      },
       "SiteSettings": {
         "type": "object",
         "required": [
@@ -2018,6 +2040,10 @@
             "items": {
               "$ref": "#/components/schemas/HomeSection"
             }
+          },
+          "homepage": {
+            "description": "首页展示设置；旧版请求可省略，读取时始终返回默认或已保存值。",
+            "$ref": "#/components/schemas/HomepageSettings"
           }
         }
       }

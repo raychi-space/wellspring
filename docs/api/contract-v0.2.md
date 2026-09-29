@@ -4,10 +4,10 @@
 
 ## 内容类型与地址
 
-- `type` 为 `ARTICLE`、`POST` 或 `THOUGHT`，分别对应 `/writing/{slug}`、`/posts/{slug}`、`/thoughts/{slug}`。旧长文 `slug` 不变。
-- 新建帖子和思考时服务端生成稳定的 `post-{UUID}` / `thought-{UUID}` slug；标题可空。长文标题必填，首次发布前须填写正式 slug。
-- 长文和思考的 `category` 必须是现有分类；新建时省略或空值归入 `未分类`，保存时省略字段保留现有分类，显式传空字符串归入 `未分类`。帖子 `category` 必须为空。长文和帖子 `tags` 可为多个已建立的标签，思考不得有标签。分类/标签由站长通过创建接口新增；本版不提供更名或删除。
-- 帖子和思考的 Markdown 不得包含图片节点或 HTML `<img>`；封面与图片上传只属于长文。长文沿用 v0.1 的图片私密、快照引用和撤回规则。
+- 新内容只有 `ARTICLE`（文章）和 `POST`（帖子），对应 `/writing/{slug}`、`/posts/{slug}`；旧文章 `slug` 不变。
+- 新建帖子时服务端生成稳定的 `post-{UUID}` slug，标题可空。文章标题必填，首次发布前须填写正式 slug。
+- 文章的 `category` 必须是现有分类；新建时省略或空值归入 `未分类`，保存时省略字段保留现有分类，显式传空字符串归入 `未分类`。帖子 `category` 必须为空。文章和帖子的 `tags` 可为多个已建立的标签。分类/标签由站长通过创建接口新增；本版不提供更名或删除。
+- 帖子的 Markdown 不得包含图片节点或 HTML `<img>`；封面与图片上传只属于文章。文章沿用 v0.1 的图片私密、快照引用和撤回规则。
 - 保存工作稿只更新管理版本与 `updatedAt`，不更新 `publishedAt`、公开快照和公开顺序。首次发布确定 `publishedAt`；再次发布更新 `publicUpdatedAt`，保持 `publishedAt` 与原位置。撤回后公开列表和详情返回 404/不包含，重发保留原地址与首次发布时间。
 
 ## HTTP
@@ -32,11 +32,11 @@
 | `POST /api/v1/admin/categories`、`.../tags` | 请求体 `{ "name": "..." }`；重名返回 409。 |
 | `GET/PUT /api/v1/admin/settings` | 读取或立即保存整份配置；PUT 携带 `version`，过期返回 409。 |
 
-`ContentInput` 传 `slug`、`title`、`summary`、`bodyMarkdown`、`tags`、`coverUrl`、`category` 和 `version`。管理详情另有不可变 `id/type`、`status`、`hasUnpublishedChanges` 与时间戳。公开详情与列表仅取发布快照。错误沿用 v0.1 的 `code/message/requestId/fieldErrors` 结构；新增 `NAME_CONFLICT` 与 `SETTINGS_VERSION_CONFLICT`。
+`ContentInput` 传 `slug`、`title`、`summary`、`bodyMarkdown`、`tags`、`coverUrl`、`category` 和 `version`。管理详情另有不可变 `id/type`、`status`、`hasUnpublishedChanges` 与时间戳。公开详情与列表仅取发布快照。旧 `THOUGHT` 记录在新列表和详情中按 `POST` 返回，并进入帖子时间线；新建 `THOUGHT` 返回 400。旧草稿保存或发布时转换为 `POST`，保留 ID、slug、正文和版本；旧 `/thoughts/{slug}` 页面转向 `/posts/{slug}`。错误沿用 v0.1 的 `code/message/requestId/fieldErrors` 结构；新增 `NAME_CONFLICT` 与 `SETTINGS_VERSION_CONFLICT`。
 
 ## 站点配置
 
-`siteName`、`intro`、可空 `avatarUrl`、`contacts`、`accounts`、`navigation` 和 `homeSections` 是一份独立配置。前三种链接列表的元素为 `{label, href}`；链接只允许站内 `/路径`、HTTP(S) 或 `mailto:`。首页区块固定为 `feed`、`writing`、`posts`、`thoughts` 四个，每个恰好出现一次；数组顺序决定显示顺序，`visible` 控制是否显示。配置没有工作稿/发布步骤；保存不读取或改动内容工作稿。头像使用站长指定的安全 URL，本版没有头像上传接口。
+`siteName`、`intro`、可空 `avatarUrl`、`contacts`、`accounts`、`navigation`、`homeSections` 和 `homepage` 是一份独立配置。前三种链接列表的元素为 `{label, href}`；链接只允许站内 `/路径`、HTTP(S) 或 `mailto:`。旧版 `homeSections` 固定为 `feed`、`writing`、`posts`、`thoughts` 四个，保留以兼容旧客户端。新首页使用 `homepage`：`focus` 为个人方向，`projects` 为最多三个 `{name, description, status, href}` 项目；`recentSections` 固定包含 `featured`、`posts`、`writing`，`bottomSections` 固定包含 `projects`、`stats`，各区块恰好出现一次，数组顺序决定展示顺序，`visible` 决定是否显示。项目链接只允许站内路径或 HTTP(S)。旧记录未含 `homepage` 时读取接口会补上默认方向、三个公开仓库和默认区块顺序；旧客户端保存时省略 `homepage` 会保留当前配置。旧导航中的 `/thoughts` 在读取时隐藏，默认“长文”标签显示为“文章”。文章、帖子数字仍根据已发布内容自动计算。配置没有工作稿/发布步骤；保存不读取或改动内容工作稿。头像使用站长指定的安全 URL，本版没有头像上传接口。
 
 ## 数据迁移和兼容
 

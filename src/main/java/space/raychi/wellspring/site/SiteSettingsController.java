@@ -24,9 +24,27 @@ public class SiteSettingsController {
 
     public record Link(String label, String href) {}
     public record Section(String id, boolean visible) {}
+    public record Project(String name, String description, String status, String href) {}
+    public record Homepage(String focus, List<Project> projects, List<Section> recentSections,
+                           List<Section> bottomSections) {}
     public record Settings(long version, String siteName, String intro, String avatarUrl,
                            List<Link> contacts, List<Link> accounts, List<Link> navigation,
-                           List<Section> homeSections) {}
+                           List<Section> homeSections, Homepage homepage) {
+        public Settings(long version, String siteName, String intro, String avatarUrl,
+                        List<Link> contacts, List<Link> accounts, List<Link> navigation,
+                        List<Section> homeSections) {
+            this(version, siteName, intro, avatarUrl, contacts, accounts, navigation, homeSections, null);
+        }
+    }
+
+    private static Homepage defaultHomepage() {
+        return new Homepage("Build with AI Agents", List.of(
+                new Project("Lantern", "面向访客的个人空间，承载首页、文章、帖子与回顾。", "持续迭代", "https://github.com/raychi-space/lantern"),
+                new Project("Inkwell", "把想法写成内容，并管理草稿、发布与站点展示。", "持续迭代", "https://github.com/raychi-space/inkwell"),
+                new Project("Wellspring", "为写作和阅读提供内容接口与发布快照。", "持续迭代", "https://github.com/raychi-space/wellspring")),
+                List.of(new Section("featured", true), new Section("posts", true), new Section("writing", true)),
+                List.of(new Section("projects", true), new Section("stats", true)));
+    }
 
     @GetMapping("/api/v1/public/settings")
     public Settings publicSettings() { return read(); }
@@ -35,25 +53,35 @@ public class SiteSettingsController {
     public Settings adminSettings() { return read(); }
 
     private Settings read() {
-        String stored = db.queryForObject("SELECT value_json FROM site_settings WHERE id=1", String.class);
-        long version = db.queryForObject("SELECT version FROM site_settings WHERE id=1", Long.class);
+        return db.queryForObject("SELECT value_json, version FROM site_settings WHERE id=1",
+                (row, index) -> decode(row.getString("value_json"), row.getLong("version")));
+    }
+
+    private Settings decode(String stored, long version) {
         try {
             Settings value = json.readValue(stored, Settings.class);
+            List<Link> navigation = value.navigation().stream()
+                    .filter(link -> !"/thoughts".equals(link.href()))
+                    .map(link -> "/writing".equals(link.href()) && "长文".equals(link.label())
+                            ? new Link("文章", link.href()) : link).toList();
             return new Settings(version, value.siteName(), value.intro(), value.avatarUrl(),
-                    value.contacts(), value.accounts(), value.navigation(), value.homeSections());
+                    value.contacts(), value.accounts(), navigation, value.homeSections(),
+                    value.homepage() == null ? defaultHomepage() : value.homepage());
         } catch (JsonProcessingException ex) { throw new IllegalStateException("Invalid site settings", ex); }
     }
 
     @PutMapping("/api/v1/admin/settings")
     @Transactional
     public Settings save(@RequestBody Settings input) {
-        validate(input);
-        Settings current = read();
-        if (input.version() != current.version())
-            throw new ApiException(HttpStatus.CONFLICT, "SETTINGS_VERSION_CONFLICT", "设置已被更新，请刷新后重试。");
+        Settings effective = input != null && input.homepage() == null
+                ? new Settings(input.version(), input.siteName(), input.intro(), input.avatarUrl(), input.contacts(),
+                        input.accounts(), input.navigation(), input.homeSections(), read().homepage()) : input;
+        validate(effective);
         try {
-            db.update("UPDATE site_settings SET value_json=?, version=version+1, updated_at=? WHERE id=1",
-                    json.writeValueAsString(input), Timestamp.from(Instant.now()));
+            int updated = db.update("UPDATE site_settings SET value_json=?, version=version+1, updated_at=? WHERE id=1 AND version=?",
+                    json.writeValueAsString(effective), Timestamp.from(Instant.now()), effective.version());
+            if (updated != 1)
+                throw new ApiException(HttpStatus.CONFLICT, "SETTINGS_VERSION_CONFLICT", "设置已被更新，请刷新后重试。");
         } catch (JsonProcessingException ex) { throw new IllegalStateException(ex); }
         return read();
     }
@@ -76,6 +104,26 @@ public class SiteSettingsController {
             if (section == null || !List.of("feed", "writing", "posts", "thoughts").contains(section.id())
                     || !sections.add(section.id())) bad();
         }
+        Homepage homepage = input.homepage();
+        if (homepage == null || homepage.focus() == null || homepage.focus().length() > 160
+                || homepage.projects() == null || homepage.projects().size() > 3
+                || homepage.recentSections() == null || homepage.bottomSections() == null) bad();
+        for (Project project : homepage.projects()) {
+            if (project == null || project.name() == null || project.name().isBlank() || project.name().length() > 80
+                    || project.description() == null || project.description().length() > 240
+                    || project.status() == null || project.status().isBlank() || project.status().length() > 40
+                    || project.href() == null || project.href().length() > 500 || !safeUrl(project.href())
+                    || project.href().startsWith("mailto:")) bad();
+        }
+        validateSections(homepage.recentSections(), List.of("featured", "posts", "writing"));
+        validateSections(homepage.bottomSections(), List.of("projects", "stats"));
+    }
+
+    private static void validateSections(List<Section> values, List<String> ids) {
+        if (values.size() != ids.size()) bad();
+        HashSet<String> seen = new HashSet<>();
+        for (Section section : values)
+            if (section == null || !ids.contains(section.id()) || !seen.add(section.id())) bad();
     }
 
     private static void validateLink(Link link) {
