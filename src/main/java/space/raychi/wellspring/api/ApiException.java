@@ -1,4 +1,4 @@
-package space.raychi.wellspring;
+package space.raychi.wellspring.api;
 
 import org.springframework.http.HttpStatus;
 

@@ -1,4 +1,6 @@
-package space.raychi.wellspring;
+package space.raychi.wellspring.auth;
+
+import space.raychi.wellspring.api.ApiException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

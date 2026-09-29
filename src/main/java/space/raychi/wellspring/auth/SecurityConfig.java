@@ -1,4 +1,6 @@
-package space.raychi.wellspring;
+package space.raychi.wellspring.auth;
+
+import space.raychi.wellspring.api.ApiErrors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
