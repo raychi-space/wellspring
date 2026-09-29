@@ -19,7 +19,7 @@ mvn spring-boot:run
 
 接口说明见[内容与站点契约 v0.2](docs/api/contract-v0.2.md)、[兼容的文章契约 v0.1](docs/api/contract-v0.1.md)与[图片授权规则](docs/api/assets-v0.1.md)。文章和图片的匿名可见性以当前发布快照为准；管理端通过同源会话 Cookie 与 CSRF 访问。上线时启用安全 Cookie，反向代理同源 `/api`，再单独评估部署资源与备份恢复。
 
-模块内部职责见[模块说明](docs/module.md)，新一轮内容服务目标见[产品任务说明](docs/product-scope-v0.2.md)；Agent 长期约定见 [AGENTS.md](AGENTS.md)。跨仓任务按[项目流程](https://github.com/raychi-space/raychi/blob/main/docs/workflow.md)处理，当前状态看[唯一进度表](https://github.com/raychi-space/raychi/blob/main/docs/progress.md)。
+模块内部职责见[模块说明](docs/module.md)，新一轮内容服务目标见[产品任务说明](docs/product-scope-v0.2.md)；Agent 长期约定见 [AGENTS.md](AGENTS.md)。跨仓任务按[项目流程](https://github.com/raychi-space/raychi/blob/main/docs/workflow.md)处理，实时状态看[组织 Projects](https://github.com/orgs/raychi-space/projects/1)；[进度入口](https://github.com/raychi-space/raychi/blob/main/docs/progress.md)说明历史快照。
 
 ## 目录约束
 
