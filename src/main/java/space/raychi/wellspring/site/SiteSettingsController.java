@@ -35,8 +35,11 @@ public class SiteSettingsController {
     public Settings adminSettings() { return read(); }
 
     private Settings read() {
-        String stored = db.queryForObject("SELECT value_json FROM site_settings WHERE id=1", String.class);
-        long version = db.queryForObject("SELECT version FROM site_settings WHERE id=1", Long.class);
+        return db.queryForObject("SELECT value_json, version FROM site_settings WHERE id=1", (row, index) ->
+                decode(row.getString("value_json"), row.getLong("version")));
+    }
+
+    private Settings decode(String stored, long version) {
         try {
             Settings value = json.readValue(stored, Settings.class);
             return new Settings(version, value.siteName(), value.intro(), value.avatarUrl(),
@@ -48,12 +51,11 @@ public class SiteSettingsController {
     @Transactional
     public Settings save(@RequestBody Settings input) {
         validate(input);
-        Settings current = read();
-        if (input.version() != current.version())
-            throw new ApiException(HttpStatus.CONFLICT, "SETTINGS_VERSION_CONFLICT", "设置已被更新，请刷新后重试。");
         try {
-            db.update("UPDATE site_settings SET value_json=?, version=version+1, updated_at=? WHERE id=1",
-                    json.writeValueAsString(input), Timestamp.from(Instant.now()));
+            int updated = db.update("UPDATE site_settings SET value_json=?, version=version+1, updated_at=? WHERE id=1 AND version=?",
+                    json.writeValueAsString(input), Timestamp.from(Instant.now()), input.version());
+            if (updated != 1)
+                throw new ApiException(HttpStatus.CONFLICT, "SETTINGS_VERSION_CONFLICT", "设置已被更新，请刷新后重试。");
         } catch (JsonProcessingException ex) { throw new IllegalStateException(ex); }
         return read();
     }
