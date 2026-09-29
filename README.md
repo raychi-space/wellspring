@@ -19,4 +19,10 @@ mvn spring-boot:run
 
 接口说明见[内容与站点契约 v0.2](docs/api/contract-v0.2.md)、[兼容的文章契约 v0.1](docs/api/contract-v0.1.md)与[图片授权规则](docs/api/assets-v0.1.md)。内容和图片的匿名可见性以当前发布快照为准；管理端通过同源会话 Cookie 与 CSRF 访问。上线时启用安全 Cookie，反向代理同源 `/api`，再单独评估部署资源与备份恢复。
 
-本仓模块边界见[模块说明](docs/module.md)，v0.2 范围由[任务文档 PR #3](https://github.com/raychi-space/wellspring/pull/3)维护，Agent 长期约定见 [AGENTS.md](AGENTS.md)。跨仓任务按[项目流程](https://github.com/raychi-space/raychi/blob/main/docs/workflow.md)处理；实时状态看[Raychi Project](https://github.com/orgs/raychi-space/projects/1)及对应 Issue/PR；Project 当前为私有。
+模块内部职责见[模块说明](docs/module.md)，v0.2 范围见[任务文档 PR #3](https://github.com/raychi-space/wellspring/pull/3)；Agent 长期约定见 [AGENTS.md](AGENTS.md)。跨仓任务按[项目流程](https://github.com/raychi-space/raychi/blob/main/docs/workflow.md)处理；实时状态看[Raychi Project](https://github.com/orgs/raychi-space/projects/1)及对应 Issue/PR。
+
+## 目录约束
+
+`src/main/java/space/raychi/wellspring/` 下的启动类保持在根包，以覆盖所有子包的组件扫描。业务代码按 `article/`、`asset/`、`auth/`、`site/` 分组；`api/` 存放跨业务的错误响应与异常。控制器处理 HTTP 契约，服务处理业务流程与事务。跨领域调用应经过明确的服务接口，不依赖另一领域的控制器。
+
+数据库版本脚本保存在 `src/main/resources/db/migration/` 和 `src/main/java/db/migration/`，应用配置在 `src/main/resources/`，集成测试在 `src/test/`，公开接口契约在 `docs/api/`。新增接口保持 `/api/v1` 版本前缀；生产数据与本地密钥不进入仓库。
