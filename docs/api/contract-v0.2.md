@@ -4,10 +4,10 @@
 
 ## 内容类型与地址
 
-- `type` 为 `ARTICLE`、`POST` 或 `THOUGHT`，分别对应 `/writing/{slug}`、`/posts/{slug}`、`/thoughts/{slug}`。旧长文 `slug` 不变。
-- 新建帖子和思考时服务端生成稳定的 `post-{UUID}` / `thought-{UUID}` slug；标题可空。长文标题必填，首次发布前须填写正式 slug。
-- 长文和思考的 `category` 必须是现有分类；新建时省略或空值归入 `未分类`，保存时省略字段保留现有分类，显式传空字符串归入 `未分类`。帖子 `category` 必须为空。长文和帖子 `tags` 可为多个已建立的标签，思考不得有标签。分类/标签由站长通过创建接口新增；本版不提供更名或删除。
-- 帖子和思考的 Markdown 不得包含图片节点或 HTML `<img>`；封面与图片上传只属于长文。长文沿用 v0.1 的图片私密、快照引用和撤回规则。
+- 新内容只有 `ARTICLE`（文章）和 `POST`（帖子），对应 `/writing/{slug}`、`/posts/{slug}`；旧文章 `slug` 不变。
+- 新建帖子时服务端生成稳定的 `post-{UUID}` slug，标题可空。文章标题必填，首次发布前须填写正式 slug。
+- 文章的 `category` 必须是现有分类；新建时省略或空值归入 `未分类`，保存时省略字段保留现有分类，显式传空字符串归入 `未分类`。帖子 `category` 必须为空。文章和帖子的 `tags` 可为多个已建立的标签。分类/标签由站长通过创建接口新增；本版不提供更名或删除。
+- 帖子的 Markdown 不得包含图片节点或 HTML `<img>`；封面与图片上传只属于文章。文章沿用 v0.1 的图片私密、快照引用和撤回规则。
 - 保存工作稿只更新管理版本与 `updatedAt`，不更新 `publishedAt`、公开快照和公开顺序。首次发布确定 `publishedAt`；再次发布更新 `publicUpdatedAt`，保持 `publishedAt` 与原位置。撤回后公开列表和详情返回 404/不包含，重发保留原地址与首次发布时间。
 
 ## HTTP
@@ -32,12 +32,12 @@
 | `POST /api/v1/admin/categories`、`.../tags` | 请求体 `{ "name": "..." }`；重名返回 409。 |
 | `GET/PUT /api/v1/admin/settings` | 读取或立即保存整份配置；PUT 携带 `version`，过期返回 409。 |
 
-`ContentInput` 传 `slug`、`title`、`summary`、`bodyMarkdown`、`tags`、`coverUrl`、`category` 和 `version`。管理详情另有不可变 `id/type`、`status`、`hasUnpublishedChanges` 与时间戳。公开详情与列表仅取发布快照。错误沿用 v0.1 的 `code/message/requestId/fieldErrors` 结构；新增 `NAME_CONFLICT` 与 `SETTINGS_VERSION_CONFLICT`。
+`ContentInput` 传 `slug`、`title`、`summary`、`bodyMarkdown`、`tags`、`coverUrl`、`category` 和 `version`。管理详情另有不可变 `id/type`、`status`、`hasUnpublishedChanges` 与时间戳。公开详情与列表仅取发布快照。旧 `THOUGHT` 记录在新列表和详情中按 `POST` 返回，并进入帖子时间线；新建 `THOUGHT` 返回 400。旧草稿保存或发布时转换为 `POST`，保留 ID、slug、正文和版本；旧 `/thoughts/{slug}` 页面转向 `/posts/{slug}`。错误沿用 v0.1 的 `code/message/requestId/fieldErrors` 结构；新增 `NAME_CONFLICT` 与 `SETTINGS_VERSION_CONFLICT`。
 
 ## 站点配置
 
-`siteName`、`intro`、可空 `avatarUrl`、`contacts`、`accounts`、`navigation` 和 `homeSections` 是一份独立配置。前三种链接列表的元素为 `{label, href}`；链接只允许站内 `/路径`、HTTP(S) 或 `mailto:`。首页区块固定为 `feed`、`writing`、`posts`、`thoughts` 四个，每个恰好出现一次；数组顺序决定显示顺序，`visible` 控制是否显示。配置没有工作稿/发布步骤；保存不读取或改动内容工作稿。头像使用站长指定的安全 URL，本版没有头像上传接口。
+`siteName`、`intro`、可空 `avatarUrl`、`contacts`、`accounts`、`navigation`、`homeSections`、`homepage`、`projectIntro` 和 `socialAccounts` 是一份独立配置。前三种链接列表的元素为 `{label, href}`；链接只允许站内 `/路径`、HTTP(S) 或 `mailto:`。旧版 `homeSections` 固定为 `feed`、`writing`、`posts`、`thoughts` 四个，保留以兼容旧客户端。新首页使用 `homepage`：`focus` 为个人方向，`projects` 为最多三个 `{name, description, status, href}` 项目；`recentSections` 固定包含 `featured`、`posts`、`writing`，`bottomSections` 固定包含 `projects`、`stats`，各区块恰好出现一次，数组顺序决定展示顺序，`visible` 决定是否显示。项目说明由 `projectIntro` 保存。项目链接只允许站内路径或 HTTP(S)。`socialAccounts` 保存最多八个 `{platform, enabled, href}`，平台为 `github`、`x`、`bilibili`、`youtube`、`zhihu`、`juejin`、`xiaohongshu`、`mastodon`；开启的平台须填写 HTTP(S) 链接。旧 `accounts` 中同名平台会在读取时转换为图标账户，保存新配置后写入 `socialAccounts`。旧客户端保存时省略新增字段会保留当前配置。公开导航读取数据库中配置的首页、帖子、文章和回顾标签；V5 把旧默认“长文”改为“文章”。文章、帖子数字仍根据已发布内容自动计算。配置没有工作稿/发布步骤；保存不读取或改动内容工作稿。头像使用站长指定的安全 URL，本版没有头像上传接口。
 
 ## 数据迁移和兼容
 
-Flyway V2 在原 `articles` 表增加类型与分类字段，不改变原 ID、slug、正文、发布快照或附件关联。既有记录是 `ARTICLE`，分类回填 `未分类`；V3 先将标签目录设为区分大小写的排序规则，再把旧工作稿和公开快照中的标签回填到目录，保留 v0.1 中如 `Tech` 与 `tech` 这样的不同标签。V4 为已成功执行早期候选版 V3 的数据库补齐同一排序规则。因此旧标签仍能在管理台选择、取消和重新添加，新增标签名仍须先创建。新表保存分类、标签目录和站点配置。v0.1 的 `/public/articles` 与 `/admin/articles` 仅处理长文；向旧管理文章详情或写入接口提供帖子、思考 ID 返回 404，旧前端仍可使用；旧公开文章列表仍不返回正文。迁移前需备份 MySQL；若早期候选版 V3 已失败，应从迁移前备份恢复，再使用当前版本重试。回滚也采用备份恢复，不删除 V2–V4 数据以避免丢失新内容。
+Flyway V2 在原 `articles` 表增加类型与分类字段，不改变原 ID、slug、正文、发布快照或附件关联。既有记录是 `ARTICLE`，分类回填 `未分类`；V3 先将标签目录设为区分大小写的排序规则，再把旧工作稿和公开快照中的标签回填到目录，保留 v0.1 中如 `Tech` 与 `tech` 这样的不同标签。V4 为已成功执行早期候选版 V3 的数据库补齐同一排序规则。因此旧标签仍能在管理台选择、取消和重新添加，新增标签名仍须先创建。新表保存分类、标签目录和站点配置。V5 为旧站点配置补上首页默认资料，并把项目说明与平台账户列表写入数据库；已有首页项目和介绍会保留。v0.1 的 `/public/articles` 与 `/admin/articles` 仅处理文章；向旧管理文章详情或写入接口提供帖子、旧思考 ID 返回 404，旧前端仍可使用；旧公开文章列表仍不返回正文。迁移前需备份 MySQL；若早期候选版 V3 已失败，应从迁移前备份恢复，再使用当前版本重试。回滚也采用备份恢复，不删除 V2–V5 数据以避免丢失新内容。
