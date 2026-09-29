@@ -2,17 +2,28 @@ package space.raychi.wellspring;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
 import space.raychi.wellspring.api.ApiException;
 import space.raychi.wellspring.article.ArticleService;
 import space.raychi.wellspring.article.TaxonomyController;
@@ -24,6 +35,7 @@ import space.raychi.wellspring.site.SiteSettingsController;
         "spring.datasource.username=sa", "spring.datasource.password=",
         "raychi.admin.username=test-admin", "raychi.assets.dir=./target/test-assets"
 })
+@AutoConfigureMockMvc
 class ContentFlowTest {
     @DynamicPropertySource
     static void password(DynamicPropertyRegistry registry) {
@@ -35,6 +47,43 @@ class ContentFlowTest {
     @Autowired SiteSettingsController settings;
     @Autowired AssetService assets;
     @Autowired JdbcTemplate db;
+    @Autowired MockMvc mvc;
+    @Autowired ObjectMapper json;
+
+    @Test
+    @WithMockUser
+    void staleSettingsSaveReturnsConflictOverHttp() throws Exception {
+        String staleInput = json.writeValueAsString(settings.adminSettings());
+        mvc.perform(put("/api/v1/admin/settings").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(staleInput)).andExpect(status().isOk());
+        mvc.perform(put("/api/v1/admin/settings").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(staleInput)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("SETTINGS_VERSION_CONFLICT"));
+    }
+
+    @Test
+    @WithMockUser
+    void legacyArticleEndpointsRejectPostAndThoughtIds() throws Exception {
+        for (String type : List.of("POST", "THOUGHT")) {
+            var content = contents.create("POST", null);
+            if ("THOUGHT".equals(type))
+                db.update("UPDATE articles SET content_type='THOUGHT' WHERE id=?", content.id());
+            String path = "/api/v1/admin/articles/" + content.id();
+            mvc.perform(get("/api/v1/admin/contents/{id}", content.id())).andExpect(status().isOk());
+            mvc.perform(get(path)).andExpect(status().isNotFound());
+            mvc.perform(put(path).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"version\":0,\"bodyMarkdown\":\"不应写入\"}"))
+                    .andExpect(status().isNotFound());
+            mvc.perform(post(path + "/publish").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"expectedVersion\":0}"))
+                    .andExpect(status().isNotFound());
+            mvc.perform(post(path + "/unpublish").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"expectedVersion\":0}"))
+                    .andExpect(status().isNotFound());
+            assertThat(contents.getAdmin(content.id()).version()).isZero();
+            assertThat(contents.getAdmin(content.id()).status()).isEqualTo("DRAFT");
+        }
+    }
 
     @Test
     void untitledPostKeepsPublishedSnapshotsAndStableLinks() {
