@@ -89,20 +89,30 @@ public class ArticleController {
     }
 
     @GetMapping("/api/v1/admin/articles/{id}")
-    ArticleService.AdminArticle adminDetail(@PathVariable String id) { return articles.getAdmin(id); }
+    ArticleService.AdminArticle adminDetail(@PathVariable String id) { return legacyArticle(id); }
 
     @PutMapping("/api/v1/admin/articles/{id}")
     ArticleService.AdminArticle save(@PathVariable String id, @RequestBody ArticleService.ArticleInput input) {
+        legacyArticle(id);
         return articles.save(id, input);
     }
 
     @PostMapping("/api/v1/admin/articles/{id}/publish")
     ArticleService.AdminArticle publish(@PathVariable String id, @RequestBody ArticleService.VersionInput input) {
+        legacyArticle(id);
         return articles.publish(id, input);
     }
 
     @PostMapping("/api/v1/admin/articles/{id}/unpublish")
     ArticleService.AdminArticle unpublish(@PathVariable String id, @RequestBody ArticleService.VersionInput input) {
+        legacyArticle(id);
         return articles.unpublish(id, input);
+    }
+
+    private ArticleService.AdminArticle legacyArticle(String id) {
+        ArticleService.AdminArticle content = articles.getAdmin(id);
+        if (!"ARTICLE".equals(content.type()))
+            throw new ApiException(HttpStatus.NOT_FOUND, "ARTICLE_NOT_FOUND", "文章不存在。");
+        return content;
     }
 }

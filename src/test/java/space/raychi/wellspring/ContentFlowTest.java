@@ -2,16 +2,25 @@ package space.raychi.wellspring;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
 import space.raychi.wellspring.api.ApiException;
 import space.raychi.wellspring.article.ArticleService;
 import space.raychi.wellspring.article.TaxonomyController;
@@ -23,6 +32,7 @@ import space.raychi.wellspring.site.SiteSettingsController;
         "spring.datasource.username=sa", "spring.datasource.password=",
         "raychi.admin.username=test-admin", "raychi.assets.dir=./target/test-assets"
 })
+@AutoConfigureMockMvc
 class ContentFlowTest {
     @DynamicPropertySource
     static void password(DynamicPropertyRegistry registry) {
@@ -33,6 +43,29 @@ class ContentFlowTest {
     @Autowired TaxonomyController taxonomy;
     @Autowired SiteSettingsController settings;
     @Autowired AssetService assets;
+    @Autowired MockMvc mvc;
+
+    @Test
+    @WithMockUser
+    void legacyArticleEndpointsRejectPostAndThoughtIds() throws Exception {
+        for (String type : List.of("POST", "THOUGHT")) {
+            var content = contents.create(type, null);
+            String path = "/api/v1/admin/articles/" + content.id();
+            mvc.perform(get("/api/v1/admin/contents/{id}", content.id())).andExpect(status().isOk());
+            mvc.perform(get(path)).andExpect(status().isNotFound());
+            mvc.perform(put(path).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"version\":0,\"bodyMarkdown\":\"不应写入\"}"))
+                    .andExpect(status().isNotFound());
+            mvc.perform(post(path + "/publish").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"expectedVersion\":0}"))
+                    .andExpect(status().isNotFound());
+            mvc.perform(post(path + "/unpublish").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"expectedVersion\":0}"))
+                    .andExpect(status().isNotFound());
+            assertThat(contents.getAdmin(content.id()).version()).isZero();
+            assertThat(contents.getAdmin(content.id()).status()).isEqualTo("DRAFT");
+        }
+    }
 
     @Test
     void untitledPostAndThoughtKeepPublishedSnapshotsAndStableLinks() {
