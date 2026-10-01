@@ -3,7 +3,7 @@
   "info": {
     "title": "Raychi content and site API",
     "version": "0.3.0",
-    "description": "v0.2 extends v0.1 without removing legacy article endpoints. Search v1 extensions: docs/api/search-v1.md."
+    "description": "v0.2 extends v0.1 without removing legacy article endpoints. Search v1 extensions: docs/api/search-v1.md. Writing assistant v1: docs/api/writing-agent-v1.md."
   },
   "servers": [
     {
@@ -11,6 +11,1192 @@
     }
   ],
   "paths": {
+    "/admin/ai/providers": {
+      "get": {
+        "summary": "ADMIN; list providers",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AIProvider"
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "ADMIN and CSRF; create Provider",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIProvider"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-TOKEN",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIProviderInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/ai/providers/{id}": {
+      "patch": {
+        "summary": "ADMIN and CSRF; merge configuration",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIProvider"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-TOKEN",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIProviderPatch"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/ai/assistants": {
+      "get": {
+        "summary": "ADMIN; list assistants",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AIAssistant"
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "ADMIN and CSRF; create Assistant",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIAssistant"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-TOKEN",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIAssistantInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/ai/assistants/{id}": {
+      "patch": {
+        "summary": "ADMIN and CSRF; merge configuration",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIAssistant"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-TOKEN",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIAssistantPatch"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/ai/providers/{id}/test": {
+      "post": {
+        "summary": "ADMIN and CSRF; test connection and tool capability separately",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIProviderTestResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-TOKEN",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIProviderTest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/ai/turns": {
+      "post": {
+        "summary": "ADMIN and CSRF; scoped idempotent writing task",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIWritingTask"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-TOKEN",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIWritingTurn"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/ai/turns/{id}": {
+      "get": {
+        "summary": "ADMIN; check task source, status and result",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIWritingTask"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          }
+        ]
+      }
+    },
     "/auth/csrf": {
       "get": {
         "operationId": "getCsrf",
@@ -1539,6 +2725,622 @@
       }
     },
     "schemas": {
+      "AIProvider": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "type": {
+            "const": "openai-compatible"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "models": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 30,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "hasApiKey": {
+            "type": "boolean"
+          },
+          "apiKeyMask": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "enabled",
+          "type",
+          "baseUrl",
+          "models",
+          "version",
+          "hasApiKey",
+          "apiKeyMask"
+        ],
+        "additionalProperties": false
+      },
+      "AIProviderInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "type": {
+            "const": "openai-compatible"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "models": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 30,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          "apiKeyAction": {
+            "enum": [
+              "retain",
+              "replace",
+              "clear"
+            ],
+            "default": "retain"
+          },
+          "apiKey": {
+            "type": "string",
+            "maxLength": 4000,
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "name",
+          "enabled",
+          "type",
+          "baseUrl",
+          "models"
+        ],
+        "additionalProperties": false
+      },
+      "AIProviderPatch": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "type": {
+            "const": "openai-compatible"
+          },
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "models": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 30,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          "apiKeyAction": {
+            "enum": [
+              "retain",
+              "replace",
+              "clear"
+            ],
+            "default": "retain"
+          },
+          "apiKey": {
+            "type": "string",
+            "maxLength": 4000,
+            "writeOnly": true
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "AIAssistant": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "version": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "providerId": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "model": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "systemPrompt": {
+            "type": "string",
+            "maxLength": 10000
+          },
+          "fixedContext": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "generationOptions": {
+            "type": "object",
+            "properties": {
+              "maxOutputTokens": {
+                "type": "integer",
+                "minimum": 128,
+                "maximum": 8192
+              }
+            },
+            "required": [
+              "maxOutputTokens"
+            ],
+            "additionalProperties": false
+          },
+          "historyTurns": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20
+          },
+          "maxContextChars": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 500000
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 120000
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "name",
+          "enabled",
+          "providerId",
+          "model",
+          "systemPrompt",
+          "fixedContext",
+          "generationOptions",
+          "historyTurns",
+          "maxContextChars",
+          "timeoutMs"
+        ],
+        "additionalProperties": false
+      },
+      "AIAssistantInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "providerId": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "model": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "systemPrompt": {
+            "type": "string",
+            "maxLength": 10000
+          },
+          "fixedContext": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "generationOptions": {
+            "type": "object",
+            "properties": {
+              "maxOutputTokens": {
+                "type": "integer",
+                "minimum": 128,
+                "maximum": 8192
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          },
+          "historyTurns": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20
+          },
+          "maxContextChars": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 500000
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 120000
+          }
+        },
+        "required": [
+          "name",
+          "enabled",
+          "providerId",
+          "model",
+          "systemPrompt"
+        ],
+        "additionalProperties": false
+      },
+      "AIAssistantPatch": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "providerId": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "model": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "systemPrompt": {
+            "type": "string",
+            "maxLength": 10000
+          },
+          "fixedContext": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "generationOptions": {
+            "type": "object",
+            "properties": {
+              "maxOutputTokens": {
+                "type": "integer",
+                "minimum": 128,
+                "maximum": 8192
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          },
+          "historyTurns": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20
+          },
+          "maxContextChars": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 500000
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 120000
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "AIProviderTest": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "model"
+        ],
+        "additionalProperties": false
+      },
+      "AIProviderTestResult": {
+        "type": "object",
+        "properties": {
+          "connection": {
+            "$ref": "#/components/schemas/AIProbeOutcome"
+          },
+          "tools": {
+            "$ref": "#/components/schemas/AIProbeOutcome"
+          },
+          "durationMs": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "connection",
+          "tools",
+          "durationMs"
+        ],
+        "additionalProperties": false
+      },
+      "AIProbeOutcome": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "reply": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "additionalProperties": false
+      },
+      "AISelectionSnapshot": {
+        "type": "object",
+        "properties": {
+          "selectionId": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "beforeMarkdown": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "contextBefore": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "contextAfter": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "selectionId",
+          "beforeMarkdown",
+          "contextBefore",
+          "contextAfter"
+        ],
+        "additionalProperties": false
+      },
+      "AIWritingTurn": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "assistantId": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "mode": {
+            "enum": [
+              "chat",
+              "rewrite",
+              "summarize"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "history": {
+            "type": "array",
+            "maxItems": 40,
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "enum": [
+                    "user",
+                    "assistant"
+                  ]
+                },
+                "content": {
+                  "type": "string",
+                  "maxLength": 20000
+                }
+              },
+              "required": [
+                "role",
+                "content"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "context": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "documentMarkdown": {
+                "type": "string",
+                "maxLength": 200000
+              },
+              "currentSummary": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "selection": {
+                "$ref": "#/components/schemas/AISelectionSnapshot"
+              }
+            },
+            "required": [
+              "title"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "requestId",
+          "assistantId",
+          "mode",
+          "message",
+          "history",
+          "context"
+        ],
+        "additionalProperties": false
+      },
+      "AIWritingProposal": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "replacement"
+              },
+              "selectionId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "newText": {
+                "type": "string",
+                "maxLength": 20000
+              }
+            },
+            "required": [
+              "kind",
+              "selectionId",
+              "newText"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "summary"
+              },
+              "summary": {
+                "type": "string",
+                "maxLength": 1000,
+                "minLength": 1
+              }
+            },
+            "required": [
+              "kind",
+              "summary"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "AIWritingResult": {
+        "type": "object",
+        "properties": {
+          "reply": {
+            "type": "string"
+          },
+          "proposal": {
+            "$ref": "#/components/schemas/AIWritingProposal"
+          }
+        },
+        "required": [
+          "reply"
+        ],
+        "additionalProperties": false
+      },
+      "AIWritingTask": {
+        "type": "object",
+        "properties": {
+          "turnId": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "running",
+              "succeeded",
+              "failed"
+            ]
+          },
+          "result": {
+            "$ref": "#/components/schemas/AIWritingResult"
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "message": {
+                "type": "string"
+              },
+              "retryable": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "retryable"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "turnId",
+          "status"
+        ],
+        "additionalProperties": false
+      },
       "Csrf": {
         "type": "object",
         "required": [
