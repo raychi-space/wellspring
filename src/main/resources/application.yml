@@ -21,6 +21,10 @@ spring:
   jackson:
     time-zone: UTC
 raychi:
+  agent:
+    enabled: ${RAYCHI_AGENT_ENABLED:false}
+    url: ${RAYCHI_AGENT_URL:http://127.0.0.1:8092}
+    token: ${RAYCHI_AGENT_TOKEN:}
   search:
     enabled: ${RAYCHI_SEARCH_ENABLED:false}
     url: ${RAYCHI_SEARCH_URL:http://127.0.0.1:8091}
