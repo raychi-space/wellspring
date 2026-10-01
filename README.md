@@ -26,3 +26,7 @@ mvn spring-boot:run
 `src/main/java/space/raychi/wellspring/` 下的启动类保持在根包，以覆盖所有子包的组件扫描。业务代码按 `article/`、`asset/`、`auth/`、`site/` 分组；`api/` 存放跨业务的错误响应与异常。控制器处理 HTTP 契约，服务处理业务流程与事务。跨领域调用应经过明确的服务接口，不依赖另一领域的控制器。
 
 数据库版本脚本保存在 `src/main/resources/db/migration/` 和 `src/main/java/db/migration/`，应用配置在 `src/main/resources/`，集成测试在 `src/test/`，公开接口契约在 `docs/api/`。新增接口保持 `/api/v1` 版本前缀；生产数据与本地密钥不进入仓库。
+
+## 搜索服务
+
+配置、公开查询、V6 迁移、来源恢复和运维命令见 [搜索接入 v1](docs/api/search-v1.md)。搜索默认关闭；启用前部署独立 search-core 0.2.0 并配置服务端密钥。
