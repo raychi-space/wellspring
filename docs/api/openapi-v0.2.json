@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Raychi content and site API",
-    "version": "0.2.0",
-    "description": "v0.2 extends v0.1 without removing legacy article endpoints."
+    "version": "0.3.0",
+    "description": "v0.2 extends v0.1 without removing legacy article endpoints. Search v1 extensions: docs/api/search-v1.md."
   },
   "servers": [
     {
@@ -819,6 +819,43 @@
             "$ref": "#/components/responses/Error"
           }
         }
+      },
+      "delete": {
+        "operationId": "deleteContent",
+        "description": "Delete content and asset DB references; retain search tombstone. Admin session and CSRF required.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "expectedVersion",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "409": {
+            "description": "ARTICLE_VERSION_CONFLICT"
+          },
+          "404": {
+            "description": "ARTICLE_NOT_FOUND"
+          },
+          "403": {
+            "description": "CSRF_INVALID"
+          }
+        }
       }
     },
     "/admin/contents/{id}/publish": {
@@ -1158,6 +1195,238 @@
           },
           "409": {
             "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/public/search": {
+      "get": {
+        "operationId": "searchPublicContents",
+        "security": [],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "article",
+                "post"
+              ]
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 200000,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "hits",
+                    "nextOffset"
+                  ],
+                  "properties": {
+                    "hits": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "version",
+                          "type",
+                          "title",
+                          "snippet",
+                          "score",
+                          "href"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "version": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "type": {
+                            "enum": [
+                              "article",
+                              "post"
+                            ]
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "snippet": {
+                            "type": "string"
+                          },
+                          "score": {
+                            "type": "number"
+                          },
+                          "href": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "nextOffset": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED"
+          },
+          "503": {
+            "description": "SEARCH_UNAVAILABLE; no-store"
+          }
+        }
+      }
+    },
+    "/admin/search/status": {
+      "get": {
+        "operationId": "statusSearch",
+        "description": "State counts and oldest timestamps; requires admin session",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED"
+          },
+          "403": {
+            "description": "CSRF_INVALID"
+          },
+          "503": {
+            "description": "SEARCH_UNAVAILABLE"
+          }
+        }
+      }
+    },
+    "/admin/search/export": {
+      "get": {
+        "operationId": "exportSearch",
+        "description": "Private authoritative snapshot backup; entries include tombstones; requires admin session",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED"
+          },
+          "403": {
+            "description": "CSRF_INVALID"
+          },
+          "503": {
+            "description": "SEARCH_UNAVAILABLE"
+          }
+        }
+      }
+    },
+    "/admin/search/restore": {
+      "post": {
+        "operationId": "restoreSearch",
+        "description": "Pause worker, snapshot, replace, version CAS ack, resume; requires admin session and CSRF",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED"
+          },
+          "403": {
+            "description": "CSRF_INVALID"
+          },
+          "503": {
+            "description": "SEARCH_UNAVAILABLE"
+          }
+        }
+      }
+    },
+    "/admin/search/retry": {
+      "post": {
+        "operationId": "retrySearch",
+        "description": "Requeue ERROR and RETRY; requires admin session and CSRF",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_REQUIRED"
+          },
+          "403": {
+            "description": "CSRF_INVALID"
+          },
+          "503": {
+            "description": "SEARCH_UNAVAILABLE"
           }
         }
       }
@@ -1958,39 +2227,119 @@
       },
       "HomepageSection": {
         "type": "object",
-        "required": ["id", "visible"],
+        "required": [
+          "id",
+          "visible"
+        ],
         "properties": {
-          "id": {"type": "string", "enum": ["featured", "posts", "writing", "projects", "stats"]},
-          "visible": {"type": "boolean"}
+          "id": {
+            "type": "string",
+            "enum": [
+              "featured",
+              "posts",
+              "writing",
+              "projects",
+              "stats"
+            ]
+          },
+          "visible": {
+            "type": "boolean"
+          }
         }
       },
       "HomepageProject": {
         "type": "object",
-        "required": ["name", "description", "status", "href"],
+        "required": [
+          "name",
+          "description",
+          "status",
+          "href"
+        ],
         "properties": {
-          "name": {"type": "string", "maxLength": 80},
-          "description": {"type": "string", "maxLength": 240},
-          "status": {"type": "string", "maxLength": 40},
-          "href": {"type": "string", "maxLength": 500}
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 240
+          },
+          "status": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "href": {
+            "type": "string",
+            "maxLength": 500
+          }
         }
       },
       "SocialAccount": {
         "type": "object",
-        "required": ["platform", "enabled", "href"],
+        "required": [
+          "platform",
+          "enabled",
+          "href"
+        ],
         "properties": {
-          "platform": {"type": "string", "enum": ["github", "x", "bilibili", "youtube", "zhihu", "juejin", "xiaohongshu", "mastodon"]},
-          "enabled": {"type": "boolean"},
-          "href": {"type": "string", "maxLength": 500}
+          "platform": {
+            "type": "string",
+            "enum": [
+              "github",
+              "x",
+              "bilibili",
+              "youtube",
+              "zhihu",
+              "juejin",
+              "xiaohongshu",
+              "mastodon"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "href": {
+            "type": "string",
+            "maxLength": 500
+          }
         }
       },
       "HomepageSettings": {
         "type": "object",
-        "required": ["focus", "projects", "recentSections", "bottomSections"],
+        "required": [
+          "focus",
+          "projects",
+          "recentSections",
+          "bottomSections"
+        ],
         "properties": {
-          "focus": {"type": "string", "maxLength": 160},
-          "projects": {"type": "array", "maxItems": 3, "items": {"$ref": "#/components/schemas/HomepageProject"}},
-          "recentSections": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/components/schemas/HomepageSection"}},
-          "bottomSections": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/components/schemas/HomepageSection"}}
+          "focus": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "projects": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "$ref": "#/components/schemas/HomepageProject"
+            }
+          },
+          "recentSections": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "$ref": "#/components/schemas/HomepageSection"
+            }
+          },
+          "bottomSections": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "$ref": "#/components/schemas/HomepageSection"
+            }
+          }
         }
       },
       "SiteSettings": {
@@ -2041,9 +2390,14 @@
           "socialAccounts": {
             "type": "array",
             "maxItems": 8,
-            "items": {"$ref": "#/components/schemas/SocialAccount"}
+            "items": {
+              "$ref": "#/components/schemas/SocialAccount"
+            }
           },
-          "projectIntro": {"type": "string", "maxLength": 240},
+          "projectIntro": {
+            "type": "string",
+            "maxLength": 240
+          },
           "navigation": {
             "type": "array",
             "items": {

@@ -21,6 +21,12 @@ spring:
   jackson:
     time-zone: UTC
 raychi:
+  search:
+    enabled: ${RAYCHI_SEARCH_ENABLED:false}
+    url: ${RAYCHI_SEARCH_URL:http://127.0.0.1:8091}
+    namespace: ${RAYCHI_SEARCH_NAMESPACE:raychi-public}
+    token: ${RAYCHI_SEARCH_TOKEN:}
+    poll-ms: ${RAYCHI_SEARCH_POLL_MS:2000}
   assets:
     dir: ${RAYCHI_ASSET_DIR:./data/assets}
   admin:
