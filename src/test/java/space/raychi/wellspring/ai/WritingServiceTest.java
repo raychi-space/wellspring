@@ -72,6 +72,39 @@ class WritingServiceTest {
   }
 
   @Test
+  void chatWithQuotedSelectionAllowsOptionalProposalButDoesNotRequireAnEdit() throws Exception {
+    when(client.request(eq("POST"), eq("/runs"), any(), any()))
+        .thenAnswer(
+            call -> {
+              var run = (com.fasterxml.jackson.databind.JsonNode) call.getArgument(2);
+              assertThat(run.path("resultRequired").asBoolean()).isFalse();
+              assertThat(run.path("bindings").size()).isEqualTo(3);
+              var collector = run.path("bindings").get(2);
+              assertThat(collector.path("name").asText()).isEqualTo("propose_replacement");
+              assertThat(
+                      collector
+                          .path("schema")
+                          .path("properties")
+                          .path("selectionId")
+                          .path("const")
+                          .asText())
+                  .isEqualTo("selection-1");
+              assertThat(run.path("messages").get(0).path("content").asText())
+                  .contains(
+                      "Default to normal conversation", "explicitly asks", "do not propose edits");
+              return json.readTree("{\"id\":\"task-1\",\"status\":\"pending\"}");
+            });
+    for (String message : new String[] {"这段在讲什么？", "请把这段改得简洁"})
+      service.create(
+          json.readTree(
+              """
+              {"requestId":"request-1","assistantId":"assistant-1","mode":"chat","message":"%s","history":[],"context":{"title":"标题","documentMarkdown":"尚未保存的全文","selection":{"selectionId":"selection-1","beforeMarkdown":"原文","contextBefore":"","contextAfter":""}}}
+              """
+                  .formatted(message)),
+          "owner");
+  }
+
+  @Test
   void invalidHistoryMissingSelectionAndInjectedToolsAreRejected() throws Exception {
     var request =
         json.readTree(

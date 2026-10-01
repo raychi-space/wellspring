@@ -87,8 +87,16 @@ public class WritingService {
               "Read the complete read_document snapshot and submit exactly one propose_summary."
                   + " Only propose a summary; do not claim it was applied.";
           default ->
-              "Use this turn's read_document and optional read_selection for context. Give text"
-                  + " advice only; no edit tools are granted.";
+              context.has("selection")
+                  ? "Use read_document and read_selection for context. Default to normal"
+                        + " conversation. Only call propose_replacement when the latest user"
+                        + " message explicitly asks to change the captured selection; for"
+                        + " questions, discussion or advice, reply with text and do not propose"
+                        + " edits. If proposing, use the exact selectionId. A proposal is never an"
+                        + " applied change; the user must confirm it."
+                  : "Use this turn's read_document for context. Give text advice only; no edit"
+                        + " tools are granted. If asked to edit, ask the user to quote a valid"
+                        + " selection first.";
         };
     messages
         .addObject()
@@ -127,10 +135,10 @@ public class WritingService {
     }
     if (mode.equals("rewrite") && selectionId == null)
       throw AgentClient.error(422, "INVALID_INPUT");
-    if (!mode.equals("chat")) {
+    if (!mode.equals("chat") || selectionId != null) {
       var schema = json.createObjectNode().put("type", "object").put("additionalProperties", false);
       var properties = schema.putObject("properties");
-      if (mode.equals("rewrite")) {
+      if (!mode.equals("summarize")) {
         properties.putObject("selectionId").put("type", "string").put("const", selectionId);
         properties.putObject("newText").put("type", "string").put("maxLength", 20000);
         schema.putArray("required").add("selectionId").add("newText");
@@ -144,7 +152,7 @@ public class WritingService {
       }
       var collector =
           binding(
-              mode.equals("rewrite") ? "propose_replacement" : "propose_summary",
+              mode.equals("summarize") ? "propose_summary" : "propose_replacement",
               "result.collect",
               "Submit one suggestion for user confirmation.");
       collector.set("schema", schema);
