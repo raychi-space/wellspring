@@ -30,3 +30,7 @@ mvn spring-boot:run
 ## 搜索服务
 
 配置、公开查询、V6 迁移、来源恢复和运维命令见 [搜索接入 v1](docs/api/search-v1.md)。搜索默认关闭；启用前部署独立 search-core 0.2.0 并配置服务端密钥。
+
+## 写作助手
+
+[Agent 接入 v1](docs/api/writing-agent-v1.md) 提供服务商/助手配置代理、站主写作任务和结构化建议。默认关闭；部署独立 agent-core 后填写 RAYCHI_AGENT_ENABLED/URL/TOKEN。浏览器通过本站会话和 CSRF 操作，密钥保存在内核加密存储，生成建议不保存或发布文章。
