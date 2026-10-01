@@ -59,6 +59,12 @@ class SearchFlowTest {
         return content.publish(draft.id(),new ArticleService.VersionInput(draft.version()));
     }
     private Map<String,Object> hit(String id,long version){return Map.of("id","content:"+id,"version",version,"type","article","title","旧标题","snippet","公开正文","score",1);}
+    @Test void generatedPostTitleComesFromAuthoritativeSnapshot() throws Exception {
+        var draft=content.create("POST",new ArticleService.ArticleInput(null,null,"","","数据库随笔，公开正文。",List.of(),null));
+        var post=content.publish(draft.id(),new ArticleService.VersionInput(draft.version()));
+        hits=List.of(Map.of("id","content:"+post.id(),"version",1,"type","post","title","不可信的旧标题","snippet","数据库随笔","score",1));
+        mvc.perform(get("/api/v1/public/search").param("q","数据库")).andExpect(status().isOk()).andExpect(jsonPath("$.hits[0].title").value("数据库随笔，公开正文。"));
+    }
     @Test void contentAndDesiredStateRollbackTogether() {
         var draft=content.create("ARTICLE",new ArticleService.ArticleInput(null,"rollback-"+UUID.randomUUID(),"事务回滚","","公开内容",List.of(),null));
         db.execute("ALTER TABLE search_sync_state ADD CONSTRAINT fixture_reject CHECK (version < 1)");
