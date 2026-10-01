@@ -21,7 +21,7 @@
 
 以下接口需要管理员会话，POST 同时需要 CSRF：
 
-- GET `/api/v1/admin/search/status`：按状态计数和最早 updated_at（积压年龄可据此计算）。不含内容或密钥。
+- GET `/api/v1/admin/search/status`：按状态计数和最早 updated_at、最多100条失败记录（状态、次数、下次重试和脱敏错误码）（积压年龄可据此计算）。不含内容或密钥。
 - GET `/api/v1/admin/search/export`：MySQL REPEATABLE_READ 一致性快照 `{entries:[{id,version,action,document?}]}`，包含墓碑。导出只备份，不改变同步确认状态。
 - POST `/api/v1/admin/search/restore`：等待当前同步批次完成并暂停本实例 worker；补齐内容目标 → 一致性快照 → 调内核全量替换 → 按导出版本逐行 CAS 确认 → 无论成败恢复 worker。全量导入超时 120 秒。期间发布照常提交；更新过的行保留 PENDING。
 - POST `/api/v1/admin/search/retry`：重新排队 ERROR/RETRY，返回 requeued。

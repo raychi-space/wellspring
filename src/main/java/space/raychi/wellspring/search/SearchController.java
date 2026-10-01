@@ -35,13 +35,13 @@ public class SearchController {
         Map<String,Map<String,Object>> visible=new HashMap<>();
         if(!ids.isEmpty()) {
             String placeholders=ids.stream().map(id->"?").collect(Collectors.joining(","));
-            for(var row:db.queryForList("SELECT a.id,a.slug,a.content_type,a.public_title,s.version FROM articles a JOIN search_sync_state s ON s.document_id=CONCAT('content:',a.id) WHERE a.status='PUBLISHED' AND s.desired_action='UPSERT' AND s.document_id IN ("+placeholders+")",ids.toArray()))visible.put("content:"+row.get("id"),row);
+            for(var row:db.queryForList("SELECT a.id,a.slug,a.content_type,a.public_title,CASE WHEN a.content_type<>'ARTICLE' THEN a.public_body ELSE NULL END AS generated_title_body,s.version FROM articles a JOIN search_sync_state s ON s.document_id=CONCAT('content:',a.id) WHERE a.status='PUBLISHED' AND s.desired_action='UPSERT' AND s.document_id IN ("+placeholders+")",ids.toArray()))visible.put("content:"+row.get("id"),row);
         }
         List<Hit> hits=new ArrayList<>();
         for(var candidate:candidates) {
             String id=candidate.path("id").asText();var current=visible.get(id);if(current==null||((Number)current.get("version")).longValue()!=candidate.path("version").asLong())continue;
             String kind="ARTICLE".equals(current.get("content_type"))?"article":"post";if(!kind.equals(candidate.path("type").asText())||(type!=null&&!type.equals(kind)))continue;
-            String title=(String)current.get("public_title");if(title==null||title.isBlank())title=candidate.path("title").asText();
+            String title=(String)current.get("public_title");if(title==null||title.isBlank())title=SearchState.projectionTitle(title,SearchState.plain((String)current.get("generated_title_body")));
             String href=(kind.equals("article")?"/writing/":"/posts/")+current.get("slug");
             hits.add(new Hit(id,((Number)current.get("version")).longValue(),kind,title,candidate.path("snippet").asText(),candidate.path("score").asDouble(),href));
         }

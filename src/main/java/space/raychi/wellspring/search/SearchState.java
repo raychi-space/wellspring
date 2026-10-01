@@ -38,6 +38,10 @@ public class SearchState {
         });
         return result.toString().strip();
     }
+    public static String projectionTitle(String title,String body) {
+        if(title!=null && !title.isBlank())return title;
+        return body.isBlank()?"帖子":body.substring(0,Math.min(80,body.length()));
+    }
     private String encode(Object value) { try {return json.writeValueAsString(value);} catch(Exception ex){throw new IllegalStateException("Cannot encode search projection",ex);} }
     private Map<String,Object> decode(String value) { try {return json.readValue(value,new TypeReference<>(){});} catch(Exception ex){throw new IllegalStateException("Invalid search projection",ex);} }
 
@@ -50,7 +54,7 @@ public class SearchState {
             var row=rows.getFirst();String body=plain((String)row.get("public_body"));
             String type="ARTICLE".equals(row.get("content_type"))?"article":"post";
             String title=(String)row.get("public_title");
-            if(title==null || title.isBlank()) title=body.isBlank()?"帖子":body.substring(0,Math.min(80,body.length()));
+            title=projectionTitle(title,body);
             doc=Map.of("title",title,"body",body,"type",type,"metadata",Map.of());
         }
         List<Long> versions=db.query("SELECT version FROM search_sync_state WHERE document_id=? FOR UPDATE",(rs,n)->rs.getLong(1),id);
@@ -84,7 +88,8 @@ public class SearchState {
     }
     public Map<String,Object> diagnostics() {
         var rows=db.queryForList("SELECT status,COUNT(*) AS count,MIN(updated_at) AS oldest FROM search_sync_state GROUP BY status");
-        return Map.of("states",rows,"interfaceVersion","v1");
+        var errors=db.queryForList("SELECT document_id,version,status,attempts,next_retry_at,last_error FROM search_sync_state WHERE status IN ('ERROR','RETRY') ORDER BY updated_at LIMIT 100");
+        return Map.of("states",rows,"failures",errors,"interfaceVersion","v1");
     }
     public int requeue() {return db.update("UPDATE search_sync_state SET status='PENDING',attempts=0,next_retry_at=?,last_error=NULL WHERE status IN ('ERROR','RETRY')",Timestamp.from(Instant.now()));}
 }

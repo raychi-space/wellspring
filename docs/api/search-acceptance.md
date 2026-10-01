@@ -2,8 +2,8 @@
 
 关联 wellspring #8 / raychi #11；候选分支 feat/search-integration，准确候选与最终 main 组合见 PR 和主 Issue。
 
-- `mvn test`：17项，16通过、1项真实MySQL条件测试默认跳过；SearchFlowTest 5项通过，覆盖草稿隔离/公开快照、事务回滚、撤回/删除墓碑、版本/类型二次校验、重复及非法参数、凭证错误/no-store、网络重试和永久ERROR、旧响应CAS竞争、恢复期间再次发布及恢复失败后继续同步。
-- 独立 MySQL8.0 容器在127.0.0.1:13308运行；通过实际HTTP登录/发布/撤回/删除/搜索/导出/来源恢复。Flyway 从空库成功迁移V1～V6；重启校验V6。另设隔离search_legacy数据库，带 RAYCHI_TEST_MYSQL_URL/USER/PASSWORD 运行17项已有测试版本全部通过，真实MySQL迁移无跳过；后来新增事务回滚用例在H2验收，最终 main 全套将重新记录。
+- `mvn test`：18项，17通过、1项真实MySQL条件测试默认跳过；SearchFlowTest 6项通过，覆盖草稿隔离/公开快照、事务回滚、撤回/删除墓碑、版本/类型二次校验、重复及非法参数、凭证错误/no-store、网络重试和永久ERROR、旧响应CAS竞争、恢复期间再次发布及恢复失败后继续同步。
+- 独立 MySQL8.0 容器在127.0.0.1:13308运行；通过实际HTTP登录/发布/撤回/删除/搜索/导出/来源恢复。Flyway 从空库成功迁移V1～V6；重启校验V6。另设隔离search_legacy数据库，带 RAYCHI_TEST_MYSQL_URL/USER/PASSWORD 运行17项候选测试全部通过，真实MySQL迁移无跳过；自审新增权威库生成帖子标题和失败诊断，不从索引复制标题，最终 main 全套将重新记录。
 - core 停机返回503，公开内容阅读及撤回/删除正常。后端重启，持久化PENDING/RETRY自动确认；服务恢复后旧upsert ignored。故意导入旧可见文档时公开接口仍剔除它，来源恢复清理旧索引。
 - 同步默认2s轮询、3s超时、最长60s退避，不承诺同步SLA；现场重试测试等待窗口必须覆盖最大退避。
 - 联调服务从固定JAR副本启动，避免重编译替换正在运行的归档导致类加载失败。
