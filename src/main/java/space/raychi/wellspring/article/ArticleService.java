@@ -33,10 +33,12 @@ public class ArticleService {
     private static final Parser MARKDOWN = Parser.builder().extensions(List.of(TablesExtension.create())).build();
     private final JdbcTemplate db;
     private final ObjectMapper json;
+    private final space.raychi.wellspring.search.SearchState search;
 
-    ArticleService(JdbcTemplate db, ObjectMapper json) {
+    ArticleService(JdbcTemplate db, ObjectMapper json, space.raychi.wellspring.search.SearchState search) {
         this.db = db;
         this.json = json;
+        this.search = search;
     }
 
     public record ArticleInput(Long version, String slug, String title, String summary,
@@ -333,6 +335,7 @@ public class ArticleService {
         db.update("DELETE FROM published_assets WHERE article_id=?", id);
         for (String assetId : assetIds)
             db.update("INSERT INTO published_assets (article_id,asset_id) VALUES (?,?)", id, assetId);
+        search.capture(id, false);
         return getAdmin(id);
     }
 
@@ -343,7 +346,18 @@ public class ArticleService {
         if (!current.status().equals("PUBLISHED")) throw bad("文章尚未发布。");
         db.update("UPDATE articles SET status='DRAFT',version=version+1,updated_at=? WHERE id=?",
                 Timestamp.from(Instant.now()), id);
+        search.capture(id, false);
         return getAdmin(id);
+    }
+
+    @Transactional
+    public void delete(String id, VersionInput input) {
+        Row current = required(id, true);
+        checkVersion(input, current);
+        search.capture(id, true);
+        db.update("DELETE FROM published_assets WHERE article_id=?", id);
+        db.update("DELETE FROM assets WHERE article_id=?", id);
+        db.update("DELETE FROM articles WHERE id=?", id);
     }
 
     private static void pagination(int page, int pageSize) {
