@@ -45,4 +45,4 @@ mvn spring-boot:run
 
 ## 写作助手
 
-[Agent 接入 v1](docs/api/writing-agent-v1.md) 提供服务商/助手配置代理、站主写作任务和结构化建议。默认关闭；部署独立 agent-core 后填写 RAYCHI_AGENT_ENABLED/URL/TOKEN。浏览器通过本站会话和 CSRF 操作，密钥保存在内核加密存储，生成建议不保存或发布文章。
+[Agent 接入 v1](docs/api/writing-agent-v1.md) 提供服务商/助手配置代理、站主写作任务和结构化建议。默认关闭；部署独立 agent-core 后填写 RAYCHI_AGENT_ENABLED/URL/TOKEN。浏览器通过本站会话和 CSRF 操作，密钥保存在内核加密存储，对话/改写建议不保存或发布文章。V7 增加发布后摘要任务：发布先成功，后台生成并安全保存摘要；模型失败不阻断发布。详见[内容契约](docs/api/contract-v0.2.md)。
