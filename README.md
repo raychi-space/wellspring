@@ -23,9 +23,21 @@ mvn spring-boot:run
 
 ## 目录约束
 
-`src/main/java/space/raychi/wellspring/` 下的启动类保持在根包，以覆盖所有子包的组件扫描。业务代码按 `article/`、`asset/`、`auth/`、`site/` 分组；`api/` 存放跨业务的错误响应与异常。控制器处理 HTTP 契约，服务处理业务流程与事务。跨领域调用应经过明确的服务接口，不依赖另一领域的控制器。
+`src/main/java/space/raychi/wellspring/` 下的启动类位于根包，覆盖全部子包的组件扫描。应用采用 Controller → Service → Mapper 分层：
 
-数据库版本脚本保存在 `src/main/resources/db/migration/` 和 `src/main/java/db/migration/`，应用配置在 `src/main/resources/`，集成测试在 `src/test/`，公开接口契约在 `docs/api/`。新增接口保持 `/api/v1` 版本前缀；生产数据与本地密钥不进入仓库。
+| 目录 | 职责与限制 |
+| --- | --- |
+| `controller/` | HTTP 参数绑定、调用 Service、通过 `ApiResponses` 构造响应；不写 SQL、事务或业务判断。 |
+| `service/` | 校验、认证、发布快照、图片权限和事务；将 Entity 转为 DTO。 |
+| `mapper/` | 基于 JdbcTemplate 执行 SQL 和映射数据库记录；仅接受或返回持久化数据，不依赖 Controller、Service 或 API DTO。 |
+| `entity/` | 数据库记录与持久化输入；只在 Service 与 Mapper 内部使用。 |
+| `dto/` | HTTP 请求和响应模型，独立于数据库表和实现类；公开内容与管理内容分别定义。 |
+| `api/` | 响应工厂、分页结构、业务异常、全局异常处理和请求 ID。 |
+| `config/` | Spring Security 等框架配置。 |
+
+成功 JSON 保持 `/api/v1` 的 DTO 和分页契约，由 `ApiResponses` 统一构造 200/201/204；图片响应集中处理缓存、媒体类型及 HEAD。异常经 `ApiErrors` 转换成 `code/message/requestId/fieldErrors`，安全过滤器使用同一格式；`X-Request-Id` 响应头与错误体中的 ID 一致。
+
+数据库迁移位于 `src/main/resources/db/migration/` 和 `src/main/java/db/migration/`，应用配置位于 `src/main/resources/`，集成测试位于 `src/test/`，接口契约位于 `docs/api/`。Flyway 迁移作为独立的数据库升级代码，不经过业务 Mapper。`LayeringTest` 在 `mvn test` 中检查层级依赖，`ApiContractTest` 验证响应结构、错误、图片 GET/HEAD 和会话流程。
 
 ## 搜索服务
 

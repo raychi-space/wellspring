@@ -13,11 +13,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -25,10 +25,16 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import space.raychi.wellspring.api.ApiException;
-import space.raychi.wellspring.article.ArticleService;
-import space.raychi.wellspring.article.TaxonomyController;
-import space.raychi.wellspring.asset.AssetService;
-import space.raychi.wellspring.site.SiteSettingsController;
+import space.raychi.wellspring.dto.AdminArticle;
+import space.raychi.wellspring.dto.ArticleInput;
+import space.raychi.wellspring.dto.NameDto;
+import space.raychi.wellspring.dto.PublicArticle;
+import space.raychi.wellspring.dto.SiteSettingsDto;
+import space.raychi.wellspring.dto.VersionInput;
+import space.raychi.wellspring.service.ArticleService;
+import space.raychi.wellspring.service.AssetService;
+import space.raychi.wellspring.service.SiteSettingsService;
+import space.raychi.wellspring.service.TaxonomyService;
 
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:content;MODE=MySQL;DB_CLOSE_DELAY=-1",
@@ -43,8 +49,8 @@ class ContentFlowTest {
     }
 
     @Autowired ArticleService contents;
-    @Autowired TaxonomyController taxonomy;
-    @Autowired SiteSettingsController settings;
+    @Autowired TaxonomyService taxonomy;
+    @Autowired SiteSettingsService settings;
     @Autowired AssetService assets;
     @Autowired JdbcTemplate db;
     @Autowired MockMvc mvc;
@@ -87,22 +93,22 @@ class ContentFlowTest {
 
     @Test
     void untitledPostKeepsPublishedSnapshotsAndStableLinks() {
-        taxonomy.createTag(new TaxonomyController.Name("随笔"));
+        taxonomy.createTag(new NameDto("随笔"));
         var post = contents.create("POST", null);
-        var savedPost = contents.save(post.id(), new ArticleService.ArticleInput(post.version(), null, "", "",
+        var savedPost = contents.save(post.id(), new ArticleInput(post.version(), null, "", "",
                 "第一版", List.of("随笔"), null, null));
         assertThatThrownBy(() -> contents.getPublic("POST", post.slug())).isInstanceOf(ApiException.class);
-        var publishedPost = contents.publish(post.id(), new ArticleService.VersionInput(savedPost.version()));
+        var publishedPost = contents.publish(post.id(), new VersionInput(savedPost.version()));
         assertThat(contents.getPublic("POST", post.slug()).bodyMarkdown()).isEqualTo("第一版");
 
-        var revised = contents.save(post.id(), new ArticleService.ArticleInput(publishedPost.version(), null, "", "",
+        var revised = contents.save(post.id(), new ArticleInput(publishedPost.version(), null, "", "",
                 "私人修改", List.of("随笔"), null, null));
         assertThat(contents.getPublic("POST", post.slug()).bodyMarkdown()).isEqualTo("第一版");
         assertThat(contents.listPublic(1, 10, null, null, "随笔").items()).hasSize(1);
-        contents.publish(post.id(), new ArticleService.VersionInput(revised.version()));
+        contents.publish(post.id(), new VersionInput(revised.version()));
         assertThat(contents.getPublic("POST", post.slug()).bodyMarkdown()).isEqualTo("私人修改");
 
-        var hidden = contents.unpublish(post.id(), new ArticleService.VersionInput(revised.version() + 1));
+        var hidden = contents.unpublish(post.id(), new VersionInput(revised.version() + 1));
         assertThat(hidden.status()).isEqualTo("DRAFT");
         assertThatThrownBy(() -> contents.getPublic("POST", post.slug()))
                 .isInstanceOfSatisfying(ApiException.class, ex -> assertThat(ex.status()).isEqualTo(HttpStatus.NOT_FOUND));
@@ -112,13 +118,13 @@ class ContentFlowTest {
     void contentTypeRulesAndSettingsAreIndependent() {
         assertThatThrownBy(() -> contents.create("THOUGHT", null)).isInstanceOf(ApiException.class);
         var post = contents.create("POST", null);
-        assertThatThrownBy(() -> contents.save(post.id(), new ArticleService.ArticleInput(post.version(), null,
+        assertThatThrownBy(() -> contents.save(post.id(), new ArticleInput(post.version(), null,
                 "", "", "![x](https://example.com/x.png)", List.of(), null, null)))
                 .isInstanceOf(ApiException.class);
         assertThatThrownBy(() -> assets.upload(post.id(), new MockMultipartFile("file", "x.png", "image/png", new byte[]{1})))
                 .isInstanceOfSatisfying(ApiException.class, ex -> assertThat(ex.status()).isEqualTo(HttpStatus.BAD_REQUEST));
         var initial = settings.publicSettings();
-        var saved = settings.save(new SiteSettingsController.Settings(initial.version(), "新站名", "新介绍", null,
+        var saved = settings.save(new SiteSettingsDto.Settings(initial.version(), "新站名", "新介绍", null,
                 List.of(), List.of(), initial.navigation(), initial.homeSections()));
         assertThat(settings.publicSettings().siteName()).isEqualTo("新站名");
         assertThat(saved.version()).isEqualTo(initial.version() + 1);
@@ -132,19 +138,19 @@ class ContentFlowTest {
         db.update("UPDATE articles SET content_type='THOUGHT', draft_category='未分类' WHERE id=?", legacy.id());
         assertThat(contents.getAdmin(legacy.id()).type()).isEqualTo("POST");
         assertThat(contents.getAdmin(legacy.id()).category()).isNull();
-        assertThat(contents.listAdmin(1, 50, "DRAFT", "POST").items()).extracting(ArticleService.AdminArticle::id)
+        assertThat(contents.listAdmin(1, 50, "DRAFT", "POST").items()).extracting(AdminArticle::id)
                 .contains(legacy.id());
-        var saved = contents.save(legacy.id(), new ArticleService.ArticleInput(legacy.version(), null, "", "",
+        var saved = contents.save(legacy.id(), new ArticleInput(legacy.version(), null, "", "",
                 "旧想法正文", List.of(), null, null));
         assertThat(saved.type()).isEqualTo("POST");
         assertThat(db.queryForObject("SELECT content_type FROM articles WHERE id=?", String.class, legacy.id())).isEqualTo("POST");
-        contents.publish(legacy.id(), new ArticleService.VersionInput(saved.version()));
+        contents.publish(legacy.id(), new VersionInput(saved.version()));
         assertThat(contents.getPublic("POST", legacy.slug()).bodyMarkdown()).isEqualTo("旧想法正文");
         db.update("UPDATE articles SET content_type='THOUGHT', draft_category='未分类', public_category='未分类' WHERE id=?", legacy.id());
         assertThat(contents.getPublic("POST", legacy.slug()).type()).isEqualTo("POST");
         assertThat(contents.getPublic("POST", legacy.slug()).category()).isNull();
         assertThat(contents.listPublic(1, 50, "POST", null, null).items())
-                .extracting(ArticleService.PublicArticle::id).contains(legacy.id());
+                .extracting(PublicArticle::id).contains(legacy.id());
     }
 
     @Test
@@ -152,48 +158,48 @@ class ContentFlowTest {
         var initial = settings.publicSettings();
         assertThat(initial.homepage().recentSections()).hasSize(3);
         assertThat(initial.projectIntro()).isNotBlank();
-        var homepage = new SiteSettingsController.Homepage("正在做的事", List.of(
-                new SiteSettingsController.Project("Raychi", "个人网站", "进行中", "https://github.com/raychi-space/raychi")),
-                List.of(new SiteSettingsController.Section("posts", true),
-                        new SiteSettingsController.Section("featured", false),
-                        new SiteSettingsController.Section("writing", true)),
-                List.of(new SiteSettingsController.Section("stats", true),
-                        new SiteSettingsController.Section("projects", true)));
-        var socialAccounts = List.of(new SiteSettingsController.SocialAccount("github", true,
+        var homepage = new SiteSettingsDto.Homepage("正在做的事", List.of(
+                new SiteSettingsDto.Project("Raychi", "个人网站", "进行中", "https://github.com/raychi-space/raychi")),
+                List.of(new SiteSettingsDto.Section("posts", true),
+                        new SiteSettingsDto.Section("featured", false),
+                        new SiteSettingsDto.Section("writing", true)),
+                List.of(new SiteSettingsDto.Section("stats", true),
+                        new SiteSettingsDto.Section("projects", true)));
+        var socialAccounts = List.of(new SiteSettingsDto.SocialAccount("github", true,
                 "https://github.com/raychi-space"));
-        var saved = settings.save(new SiteSettingsController.Settings(initial.version(), initial.siteName(),
+        var saved = settings.save(new SiteSettingsDto.Settings(initial.version(), initial.siteName(),
                 initial.intro(), initial.avatarUrl(), initial.contacts(), initial.accounts(), initial.navigation(),
                 initial.homeSections(), homepage, "最近的工作", socialAccounts));
         assertThat(settings.publicSettings().homepage()).isEqualTo(homepage);
         assertThat(settings.publicSettings().projectIntro()).isEqualTo("最近的工作");
         assertThat(settings.publicSettings().socialAccounts()).isEqualTo(socialAccounts);
-        var legacySaved = settings.save(new SiteSettingsController.Settings(saved.version(), saved.siteName(),
+        var legacySaved = settings.save(new SiteSettingsDto.Settings(saved.version(), saved.siteName(),
                 "旧客户端更新", saved.avatarUrl(), saved.contacts(), saved.accounts(), saved.navigation(),
                 saved.homeSections()));
         assertThat(legacySaved.homepage()).isEqualTo(homepage);
         assertThat(legacySaved.socialAccounts()).isEqualTo(socialAccounts);
-        assertThatThrownBy(() -> settings.save(new SiteSettingsController.Settings(legacySaved.version(), legacySaved.siteName(),
+        assertThatThrownBy(() -> settings.save(new SiteSettingsDto.Settings(legacySaved.version(), legacySaved.siteName(),
                 legacySaved.intro(), legacySaved.avatarUrl(), legacySaved.contacts(), legacySaved.accounts(), legacySaved.navigation(),
-                legacySaved.homeSections(), new SiteSettingsController.Homepage("", List.of(
-                new SiteSettingsController.Project("Bad", "", "进行中", "javascript:alert(1)")),
+                legacySaved.homeSections(), new SiteSettingsDto.Homepage("", List.of(
+                new SiteSettingsDto.Project("Bad", "", "进行中", "javascript:alert(1)")),
                 homepage.recentSections(), homepage.bottomSections())))).isInstanceOf(ApiException.class);
-        assertThatThrownBy(() -> settings.save(new SiteSettingsController.Settings(legacySaved.version(), legacySaved.siteName(),
+        assertThatThrownBy(() -> settings.save(new SiteSettingsDto.Settings(legacySaved.version(), legacySaved.siteName(),
                 legacySaved.intro(), legacySaved.avatarUrl(), legacySaved.contacts(), legacySaved.accounts(), legacySaved.navigation(),
-                legacySaved.homeSections(), homepage, "", List.of(new SiteSettingsController.SocialAccount(
+                legacySaved.homeSections(), homepage, "", List.of(new SiteSettingsDto.SocialAccount(
                 "github", true, "javascript:alert(1)"))))).isInstanceOf(ApiException.class);
     }
 
     @Test
     void legacyPlatformLinkAppearsAsIconAccount() {
         var initial = settings.publicSettings();
-        var saved = settings.save(new SiteSettingsController.Settings(initial.version(), initial.siteName(), initial.intro(),
-                initial.avatarUrl(), initial.contacts(), List.of(new SiteSettingsController.Link("GitHub", "https://github.com/example")),
+        var saved = settings.save(new SiteSettingsDto.Settings(initial.version(), initial.siteName(), initial.intro(),
+                initial.avatarUrl(), initial.contacts(), List.of(new SiteSettingsDto.Link("GitHub", "https://github.com/example")),
                 initial.navigation(), initial.homeSections(), initial.homepage(), initial.projectIntro(), List.of()));
         assertThat(saved.accounts()).isEmpty();
-        assertThat(saved.socialAccounts()).contains(new SiteSettingsController.SocialAccount(
+        assertThat(saved.socialAccounts()).contains(new SiteSettingsDto.SocialAccount(
                 "github", true, "https://github.com/example"));
         settings.save(saved);
-        assertThat(settings.publicSettings().socialAccounts()).contains(new SiteSettingsController.SocialAccount(
+        assertThat(settings.publicSettings().socialAccounts()).contains(new SiteSettingsDto.SocialAccount(
                 "github", true, "https://github.com/example"));
     }
 }

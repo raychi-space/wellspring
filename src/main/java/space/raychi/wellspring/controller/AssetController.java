@@ -1,11 +1,6 @@
-package space.raychi.wellspring.asset;
-
-import space.raychi.wellspring.api.ApiException;
+package space.raychi.wellspring.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.http.CacheControl;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,16 +10,19 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import space.raychi.wellspring.api.ApiResponses;
+import space.raychi.wellspring.dto.AssetContent;
+import space.raychi.wellspring.dto.UploadedAsset;
+import space.raychi.wellspring.service.AssetService;
 
 @RestController
 public class AssetController {
     private final AssetService assets;
-
     AssetController(AssetService assets) { this.assets = assets; }
 
     @PostMapping(path = "/api/v1/admin/articles/{id}/assets", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    ResponseEntity<AssetService.Uploaded> upload(@PathVariable String id, @RequestParam("file") MultipartFile file) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(assets.upload(id, file));
+    ResponseEntity<UploadedAsset> upload(@PathVariable String id, @RequestParam("file") MultipartFile file) {
+        return ApiResponses.created(assets.upload(id, file));
     }
 
     @RequestMapping(path = "/api/v1/admin/assets/{id}/content", method = {RequestMethod.GET, RequestMethod.HEAD})
@@ -38,12 +36,7 @@ public class AssetController {
     }
 
     private ResponseEntity<byte[]> image(String id, boolean admin, HttpServletRequest request) {
-        AssetService.Content content = assets.read(id, admin);
-        return ResponseEntity.ok()
-                .cacheControl(CacheControl.noStore())
-                .header("X-Content-Type-Options", "nosniff")
-                .contentType(MediaType.parseMediaType(content.mediaType()))
-                .contentLength(content.bytes().length)
-                .body(request.getMethod().equals("HEAD") ? null : content.bytes());
+        AssetContent content = assets.read(id, admin);
+        return ApiResponses.binary(content.bytes(), content.mediaType(), request.getMethod().equals("HEAD"));
     }
 }
