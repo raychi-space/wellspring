@@ -16,16 +16,19 @@ import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.stereotype.Service;
 import space.raychi.wellspring.api.ApiException;
 import space.raychi.wellspring.dto.CsrfResponse;
+import space.raychi.wellspring.dto.ChangePasswordRequest;
 import space.raychi.wellspring.dto.LoginRequest;
 import space.raychi.wellspring.dto.SessionResponse;
 
 @Service
 public class AuthService {
+    private final AdminAccountService accounts;
     private final AuthenticationManager manager;
     private final SecurityContextRepository contexts;
     private final CsrfTokenRepository csrfTokens;
 
-    public AuthService(AuthenticationManager manager, SecurityContextRepository contexts, CsrfTokenRepository csrfTokens) {
+    public AuthService(AuthenticationManager manager, SecurityContextRepository contexts, CsrfTokenRepository csrfTokens, AdminAccountService accounts) {
+        this.accounts = accounts;
         this.manager = manager;
         this.contexts = contexts;
         this.csrfTokens = csrfTokens;
@@ -59,6 +62,15 @@ public class AuthService {
         } catch (BadCredentialsException ex) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "用户名或密码错误。");
         }
+    }
+
+    public void changePassword(Authentication authentication, ChangePasswordRequest input,
+                               HttpServletRequest request, HttpServletResponse response) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof AdminPrincipal principal)) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_REQUIRED", "请重新登录。");
+        }
+        accounts.changePassword(principal, input);
+        logout(request, response);
     }
 
     public void logout(HttpServletRequest request, HttpServletResponse response) {

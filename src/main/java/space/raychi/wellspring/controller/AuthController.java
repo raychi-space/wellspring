@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import space.raychi.wellspring.api.ApiResponses;
 import space.raychi.wellspring.dto.CsrfResponse;
+import space.raychi.wellspring.dto.ChangePasswordRequest;
 import space.raychi.wellspring.dto.LoginRequest;
 import space.raychi.wellspring.dto.SessionResponse;
 import space.raychi.wellspring.service.AuthService;
@@ -33,6 +34,13 @@ public class AuthController {
     @PostMapping("/login")
     ResponseEntity<SessionResponse> login(@RequestBody LoginRequest input, HttpServletRequest request, HttpServletResponse response) {
         return ApiResponses.ok(auth.login(input, request, response));
+    }
+
+    @PostMapping("/password")
+    ResponseEntity<Void> changePassword(Authentication authentication, @RequestBody ChangePasswordRequest input,
+                                       HttpServletRequest request, HttpServletResponse response) {
+        auth.changePassword(authentication, input, request, response);
+        return ApiResponses.noContent();
     }
 
     @PostMapping("/logout")

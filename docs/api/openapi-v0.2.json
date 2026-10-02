@@ -2910,6 +2910,57 @@
           }
         }
       }
+    },
+    "/auth/password": {
+      "post": {
+        "operationId": "changePassword",
+        "summary": "修改当前管理员密码并注销全部已有会话",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePassword"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "修改成功，无响应体；需要使用新密码重新登录",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4592,6 +4643,26 @@
           "homepage": {
             "description": "首页展示设置；旧版请求可省略，读取时返回数据库中已保存的值。",
             "$ref": "#/components/schemas/HomepageSettings"
+          }
+        }
+      },
+      "ChangePassword": {
+        "type": "object",
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ],
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "writeOnly": true,
+            "description": "当前密码，UTF-8 最多 72 字节"
+          },
+          "newPassword": {
+            "type": "string",
+            "writeOnly": true,
+            "minLength": 12,
+            "description": "至少 12 个 Unicode 字符且 UTF-8 最多 72 字节，不得为空白或与旧密码相同；不去除首尾空格"
           }
         }
       }
