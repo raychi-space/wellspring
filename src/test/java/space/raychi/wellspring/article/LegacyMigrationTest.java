@@ -13,6 +13,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import space.raychi.wellspring.dto.ArticleInput;
+import space.raychi.wellspring.dto.NameDto;
+import space.raychi.wellspring.mapper.ArticleMapper;
+import space.raychi.wellspring.mapper.AssetMapper;
+import space.raychi.wellspring.mapper.TaxonomyMapper;
+import space.raychi.wellspring.service.ArticleService;
+import space.raychi.wellspring.service.TaxonomyService;
 
 class LegacyMigrationTest {
     @Test
@@ -45,10 +52,10 @@ class LegacyMigrationTest {
         assertThat(db.queryForList("SELECT name FROM tags ORDER BY name", String.class))
                 .containsExactlyInAnyOrder("Tech", "tech");
 
-        ArticleService articles = new ArticleService(db, new ObjectMapper(), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper()));
+        ArticleService articles = new ArticleService(new ArticleMapper(db), new TaxonomyMapper(db), new AssetMapper(db), new ObjectMapper(), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper()));
         var old = articles.getAdmin(id);
         assertThat(old.tags()).containsExactly("Tech", "tech");
-        var saved = articles.save(id, new ArticleService.ArticleInput(old.version(), old.slug(), old.title(),
+        var saved = articles.save(id, new ArticleInput(old.version(), old.slug(), old.title(),
                 old.summary(), old.bodyMarkdown(), List.of("Tech", "tech"), null));
         assertThat(saved.tags()).containsExactly("Tech", "tech");
         assertThat(articles.getPublic("case-tags").tags()).containsExactly("Tech", "tech");
@@ -59,9 +66,9 @@ class LegacyMigrationTest {
         db.execute("ALTER TABLE tags MODIFY name VARCHAR(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL");
         Flyway.configure().dataSource(source).locations("classpath:db/migration")
                 .target("4").load().migrate();
-        TaxonomyController taxonomy = new TaxonomyController(db);
-        assertThat(taxonomy.createTag(new TaxonomyController.Name("tech")).name()).isEqualTo("tech");
-        assertThat(taxonomy.createTag(new TaxonomyController.Name("TECH")).name()).isEqualTo("TECH");
+        TaxonomyService taxonomy = new TaxonomyService(new TaxonomyMapper(db));
+        assertThat(taxonomy.createTag(new NameDto("tech")).name()).isEqualTo("tech");
+        assertThat(taxonomy.createTag(new NameDto("TECH")).name()).isEqualTo("TECH");
         assertThat(db.queryForList("SELECT name FROM tags ORDER BY name", String.class))
                 .containsExactlyInAnyOrder("Tech", "tech", "TECH");
     }
@@ -103,12 +110,12 @@ class LegacyMigrationTest {
         JdbcTemplate db = new JdbcTemplate(new DriverManagerDataSource(url, "sa", ""));
         assertThat(db.queryForList("SELECT name FROM tags ORDER BY name", String.class))
                 .containsExactlyInAnyOrder("旧标签", "公开旧标签");
-        ArticleService articles = new ArticleService(db, new ObjectMapper(), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper()));
+        ArticleService articles = new ArticleService(new ArticleMapper(db), new TaxonomyMapper(db), new AssetMapper(db), new ObjectMapper(), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper()));
         var old = articles.getAdmin(id);
         assertThat(old.tags()).containsExactly("旧标签");
-        var cleared = articles.save(id, new ArticleService.ArticleInput(old.version(), old.slug(), old.title(),
+        var cleared = articles.save(id, new ArticleInput(old.version(), old.slug(), old.title(),
                 old.summary(), old.bodyMarkdown(), List.of(), null));
-        var restored = articles.save(id, new ArticleService.ArticleInput(cleared.version(), cleared.slug(),
+        var restored = articles.save(id, new ArticleInput(cleared.version(), cleared.slug(),
                 cleared.title(), cleared.summary(), cleared.bodyMarkdown(), List.of("旧标签", "公开旧标签"), null));
         assertThat(restored.tags()).containsExactly("旧标签", "公开旧标签");
         assertThat(articles.getPublic("old-link").tags()).containsExactly("旧标签", "公开旧标签");

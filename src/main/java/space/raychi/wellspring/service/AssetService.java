@@ -1,6 +1,4 @@
-package space.raychi.wellspring.asset;
-
-import space.raychi.wellspring.api.ApiException;
+package space.raychi.wellspring.service;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
@@ -8,42 +6,42 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Iterator;
-import java.util.List;
 import java.util.UUID;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import space.raychi.wellspring.api.ApiException;
+import space.raychi.wellspring.dto.AssetContent;
+import space.raychi.wellspring.dto.UploadedAsset;
+import space.raychi.wellspring.entity.ArticleEntity;
+import space.raychi.wellspring.entity.AssetEntity;
+import space.raychi.wellspring.mapper.ArticleMapper;
+import space.raychi.wellspring.mapper.AssetMapper;
 
 @Service
 public class AssetService {
-    private final JdbcTemplate db;
+    private final AssetMapper assets;
+    private final ArticleMapper articles;
     private final Path root;
 
-    AssetService(JdbcTemplate db, @Value("${raychi.assets.dir}") String directory) {
-        this.db = db;
+    public AssetService(AssetMapper assets, ArticleMapper articles, @Value("${raychi.assets.dir}") String directory) {
+        this.assets = assets;
+        this.articles = articles;
         this.root = Path.of(directory).toAbsolutePath().normalize();
     }
 
-    public record Uploaded(String id, String articleId, String url, String previewUrl,
-                           String mediaType, long byteSize, int width, int height) {}
-    public record Content(byte[] bytes, String mediaType) {}
-    private record Stored(String id, String articleId, String key, String mediaType) {}
     private record ImageMeta(String mediaType, int width, int height) {}
 
-    public Uploaded upload(String articleId, MultipartFile file) {
-        List<String> types = db.query("SELECT content_type FROM articles WHERE id=?",
-                (rs, row) -> rs.getString(1), articleId);
-        if (types.isEmpty())
-            throw new ApiException(HttpStatus.NOT_FOUND, "ARTICLE_NOT_FOUND", "文章不存在。");
-        if (!types.getFirst().equals("ARTICLE"))
+    public UploadedAsset upload(String articleId, MultipartFile file) {
+        ArticleEntity article = articles.selectById(articleId, false).orElseThrow(() ->
+                new ApiException(HttpStatus.NOT_FOUND, "ARTICLE_NOT_FOUND", "文章不存在。"));
+        if (!article.type().equals("ARTICLE"))
             throw new ApiException(HttpStatus.BAD_REQUEST, "ASSET_INVALID", "帖子和思考不支持图片上传。");
         if (file == null || file.isEmpty())
             throw new ApiException(HttpStatus.BAD_REQUEST, "ASSET_INVALID", "请选择图片。");
@@ -62,33 +60,20 @@ public class AssetService {
             Files.write(temp, bytes);
             try { Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE); }
             catch (java.nio.file.AtomicMoveNotSupportedException ex) { Files.move(temp, target); }
-            db.update("""
-                INSERT INTO assets (id,article_id,storage_key,media_type,byte_size,width_px,height_px,created_at)
-                VALUES (?,?,?,?,?,?,?,?)
-                """, id, articleId, key, meta.mediaType(), bytes.length, meta.width(), meta.height(),
-                    Timestamp.from(Instant.now()));
+            assets.insert(new AssetEntity(id, articleId, key, meta.mediaType(), bytes.length, meta.width(), meta.height(), Instant.now()));
         } catch (Exception ex) {
             try { Files.deleteIfExists(temp); Files.deleteIfExists(target); } catch (IOException ignored) {}
-            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "ASSET_STORE_FAILED", "图片保存失败。");
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "ASSET_STORE_FAILED", "图片保存失败。", ex);
         }
-        return new Uploaded(id, articleId, publicUrl(id), "/api/v1/admin/assets/" + id + "/content",
+        return new UploadedAsset(id, articleId, publicUrl(id), "/api/v1/admin/assets/" + id + "/content",
                 meta.mediaType(), bytes.length, meta.width(), meta.height());
     }
 
-    public Content read(String id, boolean admin) {
-        List<Stored> matches = db.query("SELECT id,article_id,storage_key,media_type FROM assets WHERE id=?",
-                (rs, rowNum) -> new Stored(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4)), id);
-        if (matches.isEmpty()) throw notFound();
-        Stored asset = matches.getFirst();
-        if (!admin) {
-            Integer allowed = db.queryForObject("""
-                SELECT COUNT(*) FROM published_assets pa JOIN articles a ON a.id=pa.article_id
-                WHERE pa.asset_id=? AND pa.article_id=? AND a.status='PUBLISHED'
-                """, Integer.class, asset.id(), asset.articleId());
-            if (allowed == null || allowed == 0) throw notFound();
-        }
+    public AssetContent read(String id, boolean admin) {
+        AssetEntity asset = assets.selectById(id).orElseThrow(AssetService::notFound);
+        if (!admin && !assets.isPublishedReference(asset.id(), asset.articleId())) throw notFound();
         try {
-            return new Content(Files.readAllBytes(root.resolve(asset.key())), asset.mediaType());
+            return new AssetContent(Files.readAllBytes(root.resolve(asset.key())), asset.mediaType());
         } catch (IOException ex) { throw notFound(); }
     }
 

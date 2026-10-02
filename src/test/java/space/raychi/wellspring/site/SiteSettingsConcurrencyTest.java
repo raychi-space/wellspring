@@ -14,7 +14,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import space.raychi.wellspring.api.ApiException;
-import space.raychi.wellspring.site.SiteSettingsController.Settings;
+import space.raychi.wellspring.dto.SiteSettingsDto.Settings;
+import space.raychi.wellspring.mapper.SiteSettingsMapper;
+import space.raychi.wellspring.service.SiteSettingsService;
 
 class SiteSettingsConcurrencyTest {
     @Test
@@ -37,7 +39,7 @@ class SiteSettingsConcurrencyTest {
                 return super.update(sql, args);
             }
         };
-        SiteSettingsController settings = new SiteSettingsController(db, new ObjectMapper());
+        SiteSettingsService settings = new SiteSettingsService(new SiteSettingsMapper(db), new ObjectMapper());
         Settings current = settings.adminSettings();
         Settings first = withSiteName(current, "First save");
         Settings second = withSiteName(current, "Second save");
@@ -68,7 +70,7 @@ class SiteSettingsConcurrencyTest {
                 value.accounts(), value.navigation(), value.homeSections());
     }
 
-    private static Object saveOrConflict(SiteSettingsController settings, Settings value) {
+    private static Object saveOrConflict(SiteSettingsService settings, Settings value) {
         try {
             return settings.save(value);
         } catch (ApiException conflict) {
