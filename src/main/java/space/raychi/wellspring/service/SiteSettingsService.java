@@ -1,60 +1,44 @@
-package space.raychi.wellspring.site;
+package space.raychi.wellspring.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
 import space.raychi.wellspring.api.ApiException;
+import space.raychi.wellspring.dto.SiteSettingsDto.Homepage;
+import space.raychi.wellspring.dto.SiteSettingsDto.Link;
+import space.raychi.wellspring.dto.SiteSettingsDto.Project;
+import space.raychi.wellspring.dto.SiteSettingsDto.Section;
+import space.raychi.wellspring.dto.SiteSettingsDto.Settings;
+import space.raychi.wellspring.dto.SiteSettingsDto.SocialAccount;
+import space.raychi.wellspring.entity.SiteSettingsEntity;
+import space.raychi.wellspring.mapper.SiteSettingsMapper;
 
-@RestController
-public class SiteSettingsController {
-    private final JdbcTemplate db;
+@Service
+public class SiteSettingsService {
+    private final SiteSettingsMapper settings;
     private final ObjectMapper json;
 
-    SiteSettingsController(JdbcTemplate db, ObjectMapper json) { this.db = db; this.json = json; }
-
-    public record Link(String label, String href) {}
-    public record SocialAccount(String platform, boolean enabled, String href) {}
-    public record Section(String id, boolean visible) {}
-    public record Project(String name, String description, String status, String href) {}
-    public record Homepage(String focus, List<Project> projects, List<Section> recentSections,
-                           List<Section> bottomSections) {}
-    public record Settings(long version, String siteName, String intro, String avatarUrl,
-                           List<Link> contacts, List<Link> accounts, List<Link> navigation,
-                           List<Section> homeSections, Homepage homepage, String projectIntro,
-                           List<SocialAccount> socialAccounts) {
-        public Settings(long version, String siteName, String intro, String avatarUrl,
-                        List<Link> contacts, List<Link> accounts, List<Link> navigation,
-                        List<Section> homeSections) {
-            this(version, siteName, intro, avatarUrl, contacts, accounts, navigation, homeSections, null, null, null);
-        }
-        public Settings(long version, String siteName, String intro, String avatarUrl,
-                        List<Link> contacts, List<Link> accounts, List<Link> navigation,
-                        List<Section> homeSections, Homepage homepage) {
-            this(version, siteName, intro, avatarUrl, contacts, accounts, navigation, homeSections, homepage, null, null);
-        }
+    public SiteSettingsService(SiteSettingsMapper settings, ObjectMapper json) {
+        this.settings = settings;
+        this.json = json;
     }
 
-    @GetMapping("/api/v1/public/settings")
+    @Transactional(readOnly = true)
     public Settings publicSettings() { return read(); }
 
-    @GetMapping("/api/v1/admin/settings")
+    @Transactional(readOnly = true)
     public Settings adminSettings() { return read(); }
 
     private Settings read() {
-        return db.queryForObject("SELECT value_json, version FROM site_settings WHERE id=1",
-                (row, index) -> decode(row.getString("value_json"), row.getLong("version")));
+        SiteSettingsEntity value = settings.select();
+        return decode(value.valueJson(), value.version());
     }
 
     private Settings decode(String stored, long version) {
@@ -76,9 +60,8 @@ public class SiteSettingsController {
         } catch (JsonProcessingException ex) { throw new IllegalStateException("Invalid site settings", ex); }
     }
 
-    @PutMapping("/api/v1/admin/settings")
     @Transactional
-    public Settings save(@RequestBody Settings input) {
+    public Settings save(Settings input) {
         Settings previous = read();
         Settings effective = input == null ? null : new Settings(input.version(), input.siteName(), input.intro(),
                 input.avatarUrl(), input.contacts(), input.accounts(), input.navigation(), input.homeSections(),
@@ -87,8 +70,7 @@ public class SiteSettingsController {
                 input.socialAccounts() == null ? previous.socialAccounts() : input.socialAccounts());
         validate(effective);
         try {
-            int updated = db.update("UPDATE site_settings SET value_json=?, version=version+1, updated_at=? WHERE id=1 AND version=?",
-                    json.writeValueAsString(effective), Timestamp.from(Instant.now()), effective.version());
+            int updated = settings.update(new SiteSettingsEntity(effective.version(), json.writeValueAsString(effective), Instant.now()));
             if (updated != 1)
                 throw new ApiException(HttpStatus.CONFLICT, "SETTINGS_VERSION_CONFLICT", "设置已被更新，请刷新后重试。");
         } catch (JsonProcessingException ex) { throw new IllegalStateException(ex); }

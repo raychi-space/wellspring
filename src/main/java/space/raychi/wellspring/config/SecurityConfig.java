@@ -1,6 +1,4 @@
-package space.raychi.wellspring.auth;
-
-import space.raychi.wellspring.api.ApiErrors;
+package space.raychi.wellspring.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,10 +15,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
-import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
+import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
+import space.raychi.wellspring.api.ApiErrors;
 
 @org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 @Configuration
@@ -68,14 +67,14 @@ public class SecurityConfig {
                 .authenticationEntryPoint((request, response, ex) -> {
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     response.setContentType("application/json;charset=UTF-8");
-                    mapper.writeValue(response.getWriter(), ApiErrors.body("AUTH_REQUIRED", "请先登录。"));
+                    mapper.writeValue(response.getWriter(), ApiErrors.body(request, "AUTH_REQUIRED", "请先登录。"));
                 })
                 .accessDeniedHandler((request, response, ex) -> {
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     response.setContentType("application/json;charset=UTF-8");
                     String code = ex instanceof org.springframework.security.web.csrf.CsrfException
                             ? "CSRF_INVALID" : "ACCESS_DENIED";
-                    mapper.writeValue(response.getWriter(), ApiErrors.body(code, "请求未获授权。"));
+                    mapper.writeValue(response.getWriter(), ApiErrors.body(request, code, "请求未获授权。"));
                 }));
         return http.build();
     }
