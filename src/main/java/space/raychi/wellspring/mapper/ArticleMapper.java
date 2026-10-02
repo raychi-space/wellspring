@@ -95,6 +95,10 @@ public class ArticleMapper {
     public void unpublish(String id, Instant now) {
         db.update("UPDATE articles SET status='DRAFT',version=version+1,updated_at=? WHERE id=?", Timestamp.from(now), id);
     }
+    public void applyPublicationSummary(String id, String summary, boolean draftMatches) {
+        db.update("UPDATE articles SET public_summary=?,draft_summary=CASE WHEN ? THEN ? ELSE draft_summary END,version=version+1 WHERE id=?",
+                summary, draftMatches, summary, id);
+    }
     public void delete(String id) {
         db.update("DELETE FROM articles WHERE id=?", id);
     }

@@ -52,7 +52,8 @@ class LegacyMigrationTest {
         assertThat(db.queryForList("SELECT name FROM tags ORDER BY name", String.class))
                 .containsExactlyInAnyOrder("Tech", "tech");
 
-        ArticleService articles = new ArticleService(new ArticleMapper(db), new TaxonomyMapper(db), new AssetMapper(db), new ObjectMapper(), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper()));
+        Flyway.configure().dataSource(source).locations("classpath:db/migration").load().migrate();
+        ArticleService articles = new ArticleService(new ArticleMapper(db), new TaxonomyMapper(db), new AssetMapper(db), new ObjectMapper(), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper()), new space.raychi.wellspring.mapper.PublicationSummaryMapper(db), new space.raychi.wellspring.service.PublicationSummaryService(new ArticleMapper(db), new space.raychi.wellspring.mapper.PublicationSummaryMapper(db), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper())));
         var old = articles.getAdmin(id);
         assertThat(old.tags()).containsExactly("Tech", "tech");
         var saved = articles.save(id, new ArticleInput(old.version(), old.slug(), old.title(),
@@ -110,7 +111,8 @@ class LegacyMigrationTest {
         JdbcTemplate db = new JdbcTemplate(new DriverManagerDataSource(url, "sa", ""));
         assertThat(db.queryForList("SELECT name FROM tags ORDER BY name", String.class))
                 .containsExactlyInAnyOrder("旧标签", "公开旧标签");
-        ArticleService articles = new ArticleService(new ArticleMapper(db), new TaxonomyMapper(db), new AssetMapper(db), new ObjectMapper(), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper()));
+        Flyway.configure().dataSource(url, "sa", "").locations("classpath:db/migration").load().migrate();
+        ArticleService articles = new ArticleService(new ArticleMapper(db), new TaxonomyMapper(db), new AssetMapper(db), new ObjectMapper(), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper()), new space.raychi.wellspring.mapper.PublicationSummaryMapper(db), new space.raychi.wellspring.service.PublicationSummaryService(new ArticleMapper(db), new space.raychi.wellspring.mapper.PublicationSummaryMapper(db), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper())));
         var old = articles.getAdmin(id);
         assertThat(old.tags()).containsExactly("旧标签");
         var cleared = articles.save(id, new ArticleInput(old.version(), old.slug(), old.title(),
