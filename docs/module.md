@@ -2,7 +2,7 @@
 
 Spring Boot 启动类在根包 `space.raychi.wellspring`。HTTP 控制器放在 `controller/`，只做参数绑定、Service 调用和响应构造。`service/` 下的 `ArticleService` 管理内容工作稿、发布快照和版本冲突，`TaxonomyService` 管理分类标签，`AssetService` 管理图片校验、文件存储与可见性，`AuthService` 管理会话，`SiteSettingsService` 管理配置校验、旧字段兼容与乐观锁。事务边界位于 Service；旧文章端点的类型校验与写入在同一个事务中完成。
 
-`mapper/` 下的四个 Mapper 封装现有 JdbcTemplate SQL、结果映射及数据库写入结果；`entity/` 保存持久化记录与写入数据，Entity 只在 Mapper 和 Service 之间使用。`dto/` 定义传输模型，公开内容和管理内容使用不同 DTO，Controller 不直接返回数据库记录。Service 完成 Entity → DTO 转换。认证使用 Spring Security 的站长账户，无数据库 Mapper。
+`mapper/` 下的四个 Mapper 封装现有 JdbcTemplate SQL、结果映射及数据库写入结果；`entity/` 保存持久化记录与写入数据，Entity 只在 Mapper 和 Service 之间使用。`dto/` 定义传输模型，公开内容和管理内容使用不同 DTO，Controller 不直接返回数据库记录。Service 完成 Entity → DTO 转换。认证使用 Spring Security；AdminAccountService / AdminAccountMapper 管理单管理员 MySQL 凭据、首次初始化及乐观版本更新，CredentialVersionFilter 注销过期凭据版本的会话。
 
 `api/ApiResponses` 统一构造成功、创建、空响应与二进制响应；`PageResponse` 定义分页契约；`ApiErrors` 统一处理业务异常、参数绑定、媒体类型、数据库冲突与未预期异常。安全过滤器使用相同 `ApiErrorResponse`。`RequestIdFilter` 为请求生成 `X-Request-Id`，错误体和服务日志使用该 ID。未预期异常返回通用 500 信息，详细异常留在日志。框架配置在 `config/`。
 

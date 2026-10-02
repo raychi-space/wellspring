@@ -72,3 +72,11 @@ Flyway V2 在原 `articles` 表增加类型与分类字段，不改变原 ID、s
 标签筛选使用发布时同步的大小写敏感索引；保存工作稿不改变该索引。V8 从已有 public_tags 回填索引；V9 增加附件删除队列。删除内容事务提交后后台回收文件，失败保留队列重试，回滚不删除文件。不会扫描或删除旧目录中的未知文件。
 
 管理列表新增 category、tag、sort（recent/oldest/type/category/tag），筛选和排序先于数据库分页。标签匹配工作稿中的完整标签且区分大小写；MySQL 使用 JSON_CONTAINS。管理台每次只加载一页，筛选重置页码；字数与类型统计明确标为本页统计。
+
+## 管理员修改密码
+
+`POST /api/v1/auth/password` 需要登录会话与 CSRF，JSON 为 `{currentPassword, newPassword}`。新密码至少 12 个 Unicode 字符，UTF-8 最多 72 字节，不能全为空白或与当前密码相同；不裁剪首尾空格。当前密码最多 72 字节。成功返回 204 空响应，当前会话立即注销，其他既有会话在下一次请求时按持久化凭据版本注销；旧会话读取 `/auth/session` 返回 `authenticated:false`，管理 GET 返回 401。已执行中的请求不会回滚。
+
+错误采用统一格式：400 `CURRENT_PASSWORD_INVALID`（旧密码错误，保留当前会话）；400 `VALIDATION_FAILED`（长度/空值/相同密码）；401 `AUTH_REQUIRED`；403 `CSRF_INVALID`；409 `PASSWORD_CHANGED`（并发修改，要求重新登录）。确认密码仅由管理台校验，不传到服务端。
+
+V10 增加 MySQL `admin_account` 单管理员记录，存 BCrypt 哈希与递增凭据版本。首次空表使用环境变量初始化；已有账号时忽略初始化凭据，重启不能覆盖网页修改。修改后不返回或记录明文/哈希。环境变量不再充当密码重置入口，账号记录应随 MySQL 一起备份。认证仍使用 Spring Security，会话不改为浏览器持有密码。
