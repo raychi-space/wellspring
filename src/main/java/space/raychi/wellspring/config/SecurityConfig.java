@@ -9,11 +9,12 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import space.raychi.wellspring.service.AdminAccountService;
+import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -25,16 +26,15 @@ import space.raychi.wellspring.api.ApiErrors;
 @Configuration
 public class SecurityConfig {
     @Bean
-    PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+    PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(12); }
 
     @Bean
-    UserDetailsService userDetailsService(
+    @DependsOnDatabaseInitialization
+    UserDetailsService userDetailsService(AdminAccountService accounts,
             @Value("${raychi.admin.username:}") String username,
             @Value("${raychi.admin.password-hash:}") String hash) {
-        if (username.isBlank() || !hash.matches("^\\$2[aby]\\$\\d\\d\\$.+")) {
-            throw new IllegalStateException("Set RAYCHI_ADMIN_USER and a BCrypt RAYCHI_ADMIN_PASSWORD_HASH before starting wellspring.");
-        }
-        return new InMemoryUserDetailsManager(User.withUsername(username).password(hash).roles("ADMIN").build());
+        accounts.initialize(username, hash);
+        return accounts::loadUser;
     }
 
     @Bean
@@ -50,8 +50,9 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, CsrfTokenRepository csrfTokens,
-                                           SecurityContextRepository contexts, ObjectMapper mapper) throws Exception {
+                                           SecurityContextRepository contexts, ObjectMapper mapper, AdminAccountService accounts) throws Exception {
         http
+            .addFilterBefore(new CredentialVersionFilter(accounts), CsrfFilter.class)
             .csrf(csrf -> csrf.csrfTokenRepository(csrfTokens))
             .securityContext(context -> context.securityContextRepository(contexts))
             .formLogin(form -> form.disable())
