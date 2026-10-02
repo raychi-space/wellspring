@@ -27,8 +27,8 @@ public class ArticleController {
     ResponseEntity<PageResponse<PublicArticle>> publicContents(
             @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) String type, @RequestParam(required = false) String category,
-            @RequestParam(required = false) String tag) {
-        return ApiResponses.ok(articles.listPublic(page, pageSize, type, category, tag));
+            @RequestParam(required = false) String tag, @RequestParam(defaultValue = "latest") String sort) {
+        return ApiResponses.ok(articles.listPublic(page, pageSize, type, category, tag, sort));
     }
 
     @GetMapping("/api/v1/public/contents/{type}/{slug}")
@@ -39,8 +39,10 @@ public class ArticleController {
     @GetMapping("/api/v1/admin/contents")
     ResponseEntity<PageResponse<AdminArticle>> adminContents(
             @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "10") int pageSize,
-            @RequestParam(required = false) String status, @RequestParam(required = false) String type) {
-        return ApiResponses.ok(articles.listAdmin(page, pageSize, status, type));
+            @RequestParam(required = false) String status, @RequestParam(required = false) String type,
+            @RequestParam(required = false) String category, @RequestParam(required = false) String tag,
+            @RequestParam(defaultValue = "recent") String sort) {
+        return ApiResponses.ok(articles.listAdmin(page, pageSize, status, type, category, tag, sort));
     }
 
     @PostMapping("/api/v1/admin/contents")
