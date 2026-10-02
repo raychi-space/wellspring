@@ -21,6 +21,7 @@ import space.raychi.wellspring.config.SecurityConfig;
     })
 class AgentAuthorizationTest {
   @Autowired MockMvc mvc;
+  @MockitoBean space.raychi.wellspring.service.AdminAccountService accounts;
   @MockitoBean AgentClient client;
   @MockitoBean WritingService writing;
 
