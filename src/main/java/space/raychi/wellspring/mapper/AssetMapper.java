@@ -22,7 +22,16 @@ public class AssetMapper {
         for (String id : assetIds) db.update("INSERT INTO published_assets (article_id,asset_id) VALUES (?,?)", articleId, id);
     }
 
+    public java.util.List<String> pendingDeletions() {
+        return db.queryForList("SELECT storage_key FROM asset_deletion_queue ORDER BY created_at LIMIT 100", String.class);
+    }
+
+    public void completeDeletion(String key) {
+        db.update("DELETE FROM asset_deletion_queue WHERE storage_key=?", key);
+    }
+
     public void deleteByArticle(String articleId) {
+        db.update("INSERT INTO asset_deletion_queue(storage_key,created_at) SELECT storage_key,CURRENT_TIMESTAMP FROM assets WHERE article_id=?", articleId);
         db.update("DELETE FROM published_assets WHERE article_id=?", articleId);
         db.update("DELETE FROM assets WHERE article_id=?", articleId);
     }
