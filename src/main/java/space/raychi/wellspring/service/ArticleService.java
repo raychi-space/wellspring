@@ -4,6 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import org.commonmark.node.AbstractVisitor;
+import org.commonmark.node.Heading;
+import org.commonmark.node.Text;
+import org.commonmark.node.Code;
+import space.raychi.wellspring.mapper.PublicationSummaryMapper;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -43,13 +50,17 @@ public class ArticleService {
     private final AssetMapper assets;
     private final ObjectMapper json;
     private final space.raychi.wellspring.search.SearchState search;
+    private final PublicationSummaryMapper summaryJobs;
+    private final PublicationSummaryService summaries;
 
-    public ArticleService(ArticleMapper articles, TaxonomyMapper taxonomy, AssetMapper assets, ObjectMapper json, space.raychi.wellspring.search.SearchState search) {
+    public ArticleService(ArticleMapper articles, TaxonomyMapper taxonomy, AssetMapper assets, ObjectMapper json, space.raychi.wellspring.search.SearchState search, PublicationSummaryMapper summaryJobs, PublicationSummaryService summaries) {
         this.articles = articles;
         this.taxonomy = taxonomy;
         this.assets = assets;
         this.json = json;
         this.search = search;
+        this.summaryJobs = summaryJobs;
+        this.summaries = summaries;
     }
 
     private List<String> tags(String stored) {
@@ -76,9 +87,11 @@ public class ArticleService {
                 !Objects.equals(r.draftTags(), r.publicTags()) ||
                 !Objects.equals(r.draftCover(), r.publicCover()) ||
                 !Objects.equals(r.draftCategory(), r.publicCategory());
+        var job = summaryJobs.get(r.id()).orElse(null);
         return new AdminArticle(r.id(), r.slug(), displayType(r.type()), r.status(), r.version(), r.draftTitle(), r.draftSummary(),
                 r.draftBody(), tags(r.draftTags()), r.draftCover(), displayCategory(r.type(), r.draftCategory()), changed,
-                r.createdAt(), r.updatedAt(), r.publishedAt(), r.publicUpdatedAt());
+                r.createdAt(), r.updatedAt(), r.publishedAt(), r.publicUpdatedAt(),
+                job == null ? "NONE" : job.status(), job == null ? null : job.errorCode());
     }
 
     private PublicArticle published(ArticleEntity r) {
@@ -167,12 +180,13 @@ public class ArticleService {
         if (kind.equals("THOUGHT")) throw bad("现在只支持创建文章和帖子。");
         String id = UUID.randomUUID().toString();
         String slug = kind.equals("ARTICLE")
-                ? (input == null || input.slug() == null || input.slug().isBlank() ? "draft-" + id : input.slug().trim())
-                : "post-" + id;
+                ? (input == null || input.slug() == null || input.slug().isBlank() ? dateSlug(id) : input.slug().trim())
+                : dateSlug(id);
         validateSlug(slug);
         String title = input == null ? "" : shortValue(input.title(), 255, "标题");
         String summary = input == null ? "" : shortValue(input.summary(), 600, "摘要");
         String markdown = input == null ? "" : body(input.bodyMarkdown());
+        if (kind.equals("ARTICLE")) title = documentTitle(markdown, title);
         String tagData = checkedTags(kind, input == null ? null : input.tags(), null);
         String cover = input == null ? null : input.coverUrl();
         validateCover(cover);
@@ -249,11 +263,13 @@ public class ArticleService {
         String id = current.id();
         if (input == null || input.version() == null || current.version() != input.version()) throw conflict();
         String slug = current.type().equals("ARTICLE") && input.slug() != null ? input.slug().trim() : current.slug();
+        if (current.publishedAt() == null && slug.startsWith("draft-")) slug = dateSlug(id);
         validateSlug(slug);
         if (current.publishedAt() != null && !current.slug().equals(slug)) throw bad("首次发布后不能修改地址别名。");
         String title = shortValue(input.title(), 255, "标题");
         String summary = shortValue(input.summary(), 600, "摘要");
         String markdown = body(input.bodyMarkdown());
+        if (current.type().equals("ARTICLE")) title = documentTitle(markdown, documentTitle(current.draftBody(), "").isBlank() ? title : "");
         String effectiveType = displayType(current.type());
         String tagData = checkedTags(effectiveType, input.tags(), current.draftTags());
         validateCover(input.coverUrl());
@@ -277,7 +293,9 @@ public class ArticleService {
         checkVersion(input, current);
         if ((current.type().equals("ARTICLE") && (current.draftTitle().isBlank() || current.slug().startsWith("draft-")))
                 || current.draftBody().isBlank())
-            throw bad("发布前请填写正文；长文还需要标题和正式地址别名。");
+            throw bad("发布前请填写正文，并在文章正文中添加标题。");
+        if (input.assistantId() != null && !input.assistantId().matches("[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}"))
+            throw bad("助手标识无效。");
         Set<String> assetIds = assetIds(current.draftBody(), current.draftCover());
         for (String assetId : assetIds) {
             if (!assets.belongsToArticle(assetId, id))
@@ -287,6 +305,7 @@ public class ArticleService {
         articles.publish(id, displayType(current.type()), displayCategory(current.type(), current.draftCategory()), now);
         assets.replacePublishedReferences(id, assetIds);
         search.capture(id, false);
+        summaries.enqueue(id, input.assistantId());
         return getAdmin(id);
     }
 
@@ -300,6 +319,7 @@ public class ArticleService {
         checkVersion(input, current);
         if (!current.status().equals("PUBLISHED")) throw bad("文章尚未发布。");
         articles.unpublish(id, Instant.now());
+        summaryJobs.cancel(id);
         search.capture(id, false);
         return getAdmin(id);
     }
@@ -309,6 +329,7 @@ public class ArticleService {
         ArticleEntity current = required(id, true);
         checkVersion(input, current);
         search.capture(id, true);
+        summaryJobs.delete(id);
         assets.deleteByArticle(id);
         articles.delete(id);
     }
@@ -362,6 +383,26 @@ public class ArticleService {
         ArticleEntity value = required(id, lock);
         if (!"ARTICLE".equals(value.type())) throw notFound();
         return value;
+    }
+
+    private static String dateSlug(String id) {
+        return DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.of("Asia/Shanghai")).format(Instant.now()) + "-" + id.substring(0, 8);
+    }
+
+    /** First top-level CommonMark heading; ignore fenced code, quotes, inline HTML and image URLs. */
+    private static String documentTitle(String markdown, String fallback) {
+        for (Node node = MARKDOWN.parse(markdown).getFirstChild(); node != null; node = node.getNext()) {
+            if (!(node instanceof Heading)) continue;
+            StringBuilder text = new StringBuilder();
+            node.accept(new AbstractVisitor() {
+                @Override public void visit(Text n) { text.append(n.getLiteral()); }
+                @Override public void visit(Code n) { text.append(n.getLiteral()); }
+                @Override public void visit(Image n) {}
+            });
+            return shortValue(text.toString(), 200, "正文标题");
+        }
+        // Old API clients and pre-existing articles can retain their separately entered title.
+        return fallback;
     }
 
     private static void validateCover(String cover) {

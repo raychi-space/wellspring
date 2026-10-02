@@ -51,7 +51,7 @@ class PublishingFlowTest {
         assertThat(assets.read(first.id(), true).bytes()).isEqualTo(png);
 
         var saved = articles.save(draft.id(), new ArticleInput(draft.version(),
-                "hello-" + UUID.randomUUID(), "第一版", "原摘要", imageMarkdown(first.url()), List.of("记录"), null));
+                "hello-" + UUID.randomUUID(), "第一版", "原摘要", imageMarkdown(first.url(), "第一版"), List.of("记录"), null));
         assertNotFound(() -> articles.getPublic(saved.slug()));
         assertNotFound(() -> assets.read(first.id(), false));
 
@@ -61,7 +61,7 @@ class PublishingFlowTest {
 
         var second = assets.upload(draft.id(), new MockMultipartFile("file", "two.png", "image/png", png));
         var changed = articles.save(draft.id(), new ArticleInput(published.version(),
-                saved.slug(), "第二版", "新摘要", imageMarkdown(second.url()), List.of(), null));
+                saved.slug(), "第二版", "新摘要", imageMarkdown(second.url(), "第二版"), List.of(), null));
         assertThat(changed.hasUnpublishedChanges()).isTrue();
         assertThat(articles.getPublic(saved.slug()).title()).isEqualTo("第一版");
         assertNotFound(() -> assets.read(second.id(), false));
@@ -85,7 +85,7 @@ class PublishingFlowTest {
                 .isInstanceOfSatisfying(ApiException.class, ex -> assertThat(ex.status()).isEqualTo(HttpStatus.CONFLICT));
     }
 
-    private static String imageMarkdown(String url) { return "# 正文\n\n![图片](" + url + ")"; }
+    private static String imageMarkdown(String url, String title) { return "# " + title + "\n\n![图片](" + url + ")"; }
 
     private static byte[] image() throws Exception {
         var output = new ByteArrayOutputStream();

@@ -52,14 +52,6 @@ class LegacyMigrationTest {
         assertThat(db.queryForList("SELECT name FROM tags ORDER BY name", String.class))
                 .containsExactlyInAnyOrder("Tech", "tech");
 
-        ArticleService articles = new ArticleService(new ArticleMapper(db), new TaxonomyMapper(db), new AssetMapper(db), new ObjectMapper(), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper()));
-        var old = articles.getAdmin(id);
-        assertThat(old.tags()).containsExactly("Tech", "tech");
-        var saved = articles.save(id, new ArticleInput(old.version(), old.slug(), old.title(),
-                old.summary(), old.bodyMarkdown(), List.of("Tech", "tech"), null));
-        assertThat(saved.tags()).containsExactly("Tech", "tech");
-        assertThat(articles.getPublic("case-tags").tags()).containsExactly("Tech", "tech");
-
         // An existing candidate database can have V3 applied with the old case-insensitive column.
         db.update("DELETE FROM tags WHERE name=?", "tech");
         db.update("UPDATE articles SET draft_tags=?, public_tags=? WHERE id=?", "[\"Tech\"]", "[\"Tech\"]", id);
@@ -71,6 +63,19 @@ class LegacyMigrationTest {
         assertThat(taxonomy.createTag(new NameDto("TECH")).name()).isEqualTo("TECH");
         assertThat(db.queryForList("SELECT name FROM tags ORDER BY name", String.class))
                 .containsExactlyInAnyOrder("Tech", "tech", "TECH");
+
+        // Restore case-distinct legacy metadata before testing current-service round trips.
+        db.update("UPDATE articles SET draft_tags=?, public_tags=? WHERE id=?", "[\"Tech\",\"tech\"]", "[\"Tech\",\"tech\"]", id);
+        // Current services require all current migrations; upgrade only after exercising V4 repair.
+        Flyway.configure().dataSource(source).locations("classpath:db/migration").load().migrate();
+        ArticleService articles = new ArticleService(new ArticleMapper(db), new TaxonomyMapper(db), new AssetMapper(db), new ObjectMapper(), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper()), new space.raychi.wellspring.mapper.PublicationSummaryMapper(db), new space.raychi.wellspring.service.PublicationSummaryService(new ArticleMapper(db), new space.raychi.wellspring.mapper.PublicationSummaryMapper(db), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper())));
+        var old = articles.getAdmin(id);
+        assertThat(old.tags()).containsExactly("Tech", "tech");
+        var saved = articles.save(id, new ArticleInput(old.version(), old.slug(), old.title(),
+                old.summary(), old.bodyMarkdown(), List.of("Tech", "tech"), null));
+        assertThat(saved.tags()).containsExactly("Tech", "tech");
+        assertThat(articles.getPublic("case-tags").tags()).containsExactly("Tech", "tech");
+
     }
 
     @Test
@@ -110,7 +115,8 @@ class LegacyMigrationTest {
         JdbcTemplate db = new JdbcTemplate(new DriverManagerDataSource(url, "sa", ""));
         assertThat(db.queryForList("SELECT name FROM tags ORDER BY name", String.class))
                 .containsExactlyInAnyOrder("旧标签", "公开旧标签");
-        ArticleService articles = new ArticleService(new ArticleMapper(db), new TaxonomyMapper(db), new AssetMapper(db), new ObjectMapper(), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper()));
+        Flyway.configure().dataSource(url, "sa", "").locations("classpath:db/migration").load().migrate();
+        ArticleService articles = new ArticleService(new ArticleMapper(db), new TaxonomyMapper(db), new AssetMapper(db), new ObjectMapper(), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper()), new space.raychi.wellspring.mapper.PublicationSummaryMapper(db), new space.raychi.wellspring.service.PublicationSummaryService(new ArticleMapper(db), new space.raychi.wellspring.mapper.PublicationSummaryMapper(db), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper())));
         var old = articles.getAdmin(id);
         assertThat(old.tags()).containsExactly("旧标签");
         var cleared = articles.save(id, new ArticleInput(old.version(), old.slug(), old.title(),
