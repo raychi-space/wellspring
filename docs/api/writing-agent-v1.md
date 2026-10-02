@@ -25,7 +25,7 @@ interface TurnRequest {
 
 requestId 为80字符内标识符；服务器加站主摘要范围作为底层幂等键。相同 payload 重发复用任务；不同 payload 同 key409。history 至多20完整用户/助手轮次；禁止 system/tool 消息。title200、message及每个历史消息20k；documentMarkdown200k；selection原文20k、前后文各500；currentSummary2000。内核助手字符预算还会校验整个上下文，过量422 CONTEXT_LIMIT，未截断全文。
 
-chat 需要 documentMarkdown；read_document、可选 read_selection 只读取本轮快照。rewrite 必须有 selection，仅 read_selection 与 propose_replacement；结果 Schema 固定 selectionId 与 newText（可空，表示删除）。summarize 使用浏览器当前全文与摘要，提供 read_document 和 propose_summary（非空，最多1000）。工具名称、描述、权限与 Schema 由 wellspring 注入，浏览器不得提交绑定或 Schema；内核只执行通用 snapshot.read/result.collect。写作指令作为服务组装内容，用户提示词不能扩大工具授权。
+chat 需要 documentMarkdown；read_document、可选 read_selection 只读取本轮快照。有有效selection时额外开放可选propose_replacement（固定selectionId Schema）；默认普通对话，模型仅在当前用户明确要求修改引用选区时才应提出建议，普通问答不要求收集结果。没有选区不开放编辑建议工具，提示先引用有效选区。所有建议仍须本地确认，模型不能直接修改正文。rewrite 必须有 selection，仅 read_selection 与 propose_replacement；结果 Schema 固定 selectionId 与 newText（可空，表示删除）。summarize 可由前端独立的自动摘要流程调用，使用浏览器当前全文与摘要，提供 read_document 和 propose_summary（非空，最多1000）。工具名称、描述、权限与 Schema 由 wellspring 注入，浏览器不得提交绑定或 Schema；内核只执行通用 snapshot.read/result.collect。写作指令作为服务组装内容，用户提示词不能扩大工具授权。
 
 成功 result `{reply,proposal?}`；proposal 为 `{kind:'replacement',selectionId,newText}` 或 `{kind:'summary',summary}`。服务端不修改正文、摘要或发布状态。原文与位置由浏览器的当前编辑器书签验证，模型不提供位置。rewrite/summarize 缺有效收集结果时任务失败。
 
