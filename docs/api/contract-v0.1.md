@@ -174,3 +174,6 @@ POST /api/v1/admin/articles/11111111-1111-4111-8111-111111111111/publish
 错误统一为 `code/message/requestId/fieldErrors`；`requestId` 与响应头一致，字段验证错误项为 `{field, message}`，无字段详情时返回空数组。业务错误与认证/CSRF 保留已有状态码和错误码。Malformed JSON、无法转换的参数、缺少必需参数或 multipart 字段返回 400 `VALIDATION_FAILED`；不支持的方法返回 405 `METHOD_NOT_ALLOWED` 并保留 Allow；不支持的请求媒体类型返回 415 `MEDIA_TYPE_NOT_SUPPORTED`；不支持的响应媒体类型返回 406 `MEDIA_TYPE_NOT_ACCEPTABLE`；未知资源返回 404 `RESOURCE_NOT_FOUND`。未归类的数据约束冲突返回 409 `DATA_CONFLICT`；未预期异常返回 500 `INTERNAL_ERROR`，详细异常仅记录到服务日志。
 
 此次分层重构使用现有表结构及迁移版本；前端按原契约解析成功响应。
+
+
+2026-10-02 兼容扩展：管理文章响应包含 summaryStatus/summaryError，发布可传 assistantId；文章首个顶层 Markdown 标题优先，新建时缺省别名按日期生成，已有公开链接不变。发布后摘要持久化规则见 [v0.2 契约](contract-v0.2.md#发布后摘要与编辑元数据2026-10-02)。旧独立标题、自定义链接、手动摘要输入仍可解析。

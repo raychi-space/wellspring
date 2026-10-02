@@ -3654,11 +3654,13 @@
           "slug": {
             "type": "string",
             "maxLength": 120,
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "description": "Generated as YYYY-MM-DD plus a unique suffix when absent on creation. Existing published links are immutable."
           },
           "title": {
             "type": "string",
-            "maxLength": 255
+            "maxLength": 255,
+            "description": "ARTICLE: first top-level Markdown heading overrides this field. Without a heading legacy separate titles are preserved; new studio asks for a heading."
           },
           "summary": {
             "type": "string",
@@ -3695,6 +3697,15 @@
           "expectedVersion": {
             "type": "integer",
             "format": "int64"
+          },
+          "assistantId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}$",
+            "description": "Optional selected assistant for an ARTICLE publication summary. Omitted uses the first enabled assistant. Not used for withdrawal."
           }
         }
       },
@@ -3711,7 +3722,9 @@
           "tags",
           "hasUnpublishedChanges",
           "createdAt",
-          "updatedAt"
+          "updatedAt",
+          "summaryStatus",
+          "summaryError"
         ],
         "properties": {
           "id": {
@@ -3777,6 +3790,26 @@
               "null"
             ],
             "format": "date-time"
+          },
+          "summaryStatus": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "PENDING",
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED",
+              "SKIPPED",
+              "CANCELLED"
+            ],
+            "description": "Persisted summary job for the latest publication; never initiated by draft saves."
+          },
+          "summaryError": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Safe failure code, no input, key or model response."
           }
         }
       },
@@ -3983,11 +4016,13 @@
           "slug": {
             "type": "string",
             "maxLength": 120,
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "description": "Generated as YYYY-MM-DD plus a unique suffix when absent on creation. Existing published links are immutable."
           },
           "title": {
             "type": "string",
-            "maxLength": 255
+            "maxLength": 255,
+            "description": "ARTICLE: first top-level Markdown heading overrides this field. Without a heading legacy separate titles are preserved; new studio asks for a heading."
           },
           "summary": {
             "type": "string",
@@ -4040,7 +4075,9 @@
           "createdAt",
           "updatedAt",
           "type",
-          "category"
+          "category",
+          "summaryStatus",
+          "summaryError"
         ],
         "properties": {
           "id": {
@@ -4123,6 +4160,26 @@
                 "type": "null"
               }
             ]
+          },
+          "summaryStatus": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "PENDING",
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED",
+              "SKIPPED",
+              "CANCELLED"
+            ],
+            "description": "Persisted summary job for the latest publication; never initiated by draft saves."
+          },
+          "summaryError": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Safe failure code, no input, key or model response."
           }
         }
       },

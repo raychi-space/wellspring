@@ -49,3 +49,18 @@ Flyway V2 在原 `articles` 表增加类型与分类字段，不改变原 ID、s
 错误统一为 `code/message/requestId/fieldErrors`；`requestId` 与响应头一致，字段验证错误项为 `{field, message}`，无字段详情时返回空数组。业务错误与认证/CSRF 保留已有状态码和错误码。Malformed JSON、无法转换的参数、缺少必需参数或 multipart 字段返回 400 `VALIDATION_FAILED`；不支持的方法返回 405 `METHOD_NOT_ALLOWED` 并保留 Allow；不支持的请求媒体类型返回 415 `MEDIA_TYPE_NOT_SUPPORTED`；不支持的响应媒体类型返回 406 `MEDIA_TYPE_NOT_ACCEPTABLE`；未知资源返回 404 `RESOURCE_NOT_FOUND`。未归类的数据约束冲突返回 409 `DATA_CONFLICT`；未预期异常返回 500 `INTERNAL_ERROR`，详细异常仅记录到服务日志。
 
 此次分层重构使用现有表结构及迁移版本；前端按原契约解析成功响应。
+
+
+## 发布后摘要与编辑元数据（2026-10-02）
+
+文章创建/保存时从正文首个**顶层 Markdown 标题**（任意标题级别、包括 Setext）提取纯文字标题；代码块与引用中的标题不计，链接/格式去掉标记。最多200字符。没有标题时兼容旧客户端提交的 title 和已有文章；管理台新写作流程在正文内写标题。
+
+新内容不传 slug 时生成 `YYYY-MM-DD-<唯一后缀>`（日期按 Asia/Shanghai）；文章和帖子均支持，避免同日碰撞。首次发布后不变。旧链接不迁移；未发布的旧 `draft-*` 别名在保存时转为日期别名。显式传入的旧自定义地址仍兼容。
+
+发布请求保留 expectedVersion，新增可选 assistantId（仅文章生效）。发布事务同时保存 V7 `publication_summaries` 的最新任务；不在事务中调用模型。省略助手时后台选择首个已启用助手；无助手为 SKIPPED，有效配置/模型不可用为 FAILED，发布本身照常成功。编辑、停顿和保存草稿不会启动摘要。
+
+管理内容响应新增 summaryStatus：NONE/PENDING/RUNNING/SUCCEEDED/FAILED/SKIPPED/CANCELLED，及 nullable summaryError 安全错误码。后台通过现有受控写作适配层使用已发布全文；任务 ID 与助手选择持久化，创建使用固定 jobId 幂等键，关闭页面/重启 API 后继续查询内核任务；未记录正文副本或密钥。模型结果需非空且不超过600字符，执行最长150秒。失败保留原摘要，再次发布创建新任务重试。
+
+结果写入公开摘要；只有工作稿正文、标题与旧摘要仍与发布快照相同时才同步工作稿摘要，不把私人改动带到公开内容。完成更新文章 version（updatedAt/publicUpdatedAt 保持内容保存/发布时间口径）并同步搜索投影，客户端需使用最新 version 保存。只对同一 jobId、同一 publicUpdatedAt 且仍 PUBLISHED 的快照应用；重新发布替换任务，撤回取消，删除清理。没有把 Agent 核心接口加入文章专属字段。
+
+分类标签目录接口不变。管理台对全部已有词做输入联想；已有词复用，未匹配词通过现有 POST 接口创建，409 NAME_CONFLICT 后刷新并复用，标签保持大小写区分。尚未按回车的输入在保存/发布前提交。

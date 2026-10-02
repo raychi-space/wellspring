@@ -128,6 +128,7 @@ class SearchFlowTest {
         started = null;
         release = null;
         db.update("DELETE FROM search_sync_state");
+        db.update("DELETE FROM publication_summaries");
         db.update("DELETE FROM articles");
     }
 
