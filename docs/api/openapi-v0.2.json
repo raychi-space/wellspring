@@ -1210,7 +1210,15 @@
                   "$ref": "#/components/schemas/Csrf"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
           }
         }
       }
@@ -1227,7 +1235,15 @@
                   "$ref": "#/components/schemas/Session"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
           }
         }
       }
@@ -1259,9 +1275,17 @@
                   "$ref": "#/components/schemas/Session"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1282,9 +1306,17 @@
         ],
         "responses": {
           "204": {
-            "description": "退出成功"
+            "description": "退出成功",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
           },
           "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1310,7 +1342,15 @@
                   "$ref": "#/components/schemas/PublicArticlePage"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
           }
         }
       }
@@ -1332,9 +1372,17 @@
                   "$ref": "#/components/schemas/PublicArticle"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1376,9 +1424,17 @@
                   "$ref": "#/components/schemas/AdminArticlePage"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1413,9 +1469,17 @@
                   "$ref": "#/components/schemas/AdminArticle"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1443,9 +1507,17 @@
                   "$ref": "#/components/schemas/AdminArticle"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1484,9 +1556,17 @@
                   "$ref": "#/components/schemas/AdminArticle"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1527,9 +1607,17 @@
                   "$ref": "#/components/schemas/AdminArticle"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1570,9 +1658,17 @@
                   "$ref": "#/components/schemas/AdminArticle"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1623,12 +1719,20 @@
                   "$ref": "#/components/schemas/UploadedAsset"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
             "$ref": "#/components/responses/Error"
           },
           "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1653,6 +1757,9 @@
           },
           "404": {
             "$ref": "#/components/responses/Error"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
           }
         }
       },
@@ -1670,9 +1777,17 @@
         ],
         "responses": {
           "200": {
-            "description": "图片元数据"
+            "description": "图片元数据",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
           },
           "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1692,6 +1807,9 @@
           },
           "404": {
             "$ref": "#/components/responses/Error"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
           }
         }
       },
@@ -1704,9 +1822,17 @@
         ],
         "responses": {
           "200": {
-            "description": "图片元数据"
+            "description": "图片元数据",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
           },
           "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1758,9 +1884,17 @@
                   "$ref": "#/components/schemas/PublicContentPage"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1800,9 +1934,17 @@
                   "$ref": "#/components/schemas/PublicContent"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1852,9 +1994,17 @@
                   "$ref": "#/components/schemas/AdminContentPage"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1901,6 +2051,11 @@
                   "$ref": "#/components/schemas/AdminContent"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -1910,6 +2065,9 @@
             "$ref": "#/components/responses/Error"
           },
           "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1942,12 +2100,20 @@
                   "$ref": "#/components/schemas/AdminContent"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "401": {
             "$ref": "#/components/responses/Error"
           },
           "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1991,6 +2157,11 @@
                   "$ref": "#/components/schemas/AdminContent"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -2003,6 +2174,9 @@
             "$ref": "#/components/responses/Error"
           },
           "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -2085,6 +2259,11 @@
                   "$ref": "#/components/schemas/AdminContent"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -2097,6 +2276,9 @@
             "$ref": "#/components/responses/Error"
           },
           "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -2142,6 +2324,11 @@
                   "$ref": "#/components/schemas/AdminContent"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -2154,6 +2341,9 @@
             "$ref": "#/components/responses/Error"
           },
           "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -2174,7 +2364,15 @@
                   }
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
           }
         }
       }
@@ -2211,6 +2409,11 @@
                   "$ref": "#/components/schemas/Name"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -2223,6 +2426,9 @@
             "$ref": "#/components/responses/Error"
           },
           "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -2243,7 +2449,15 @@
                   }
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
           }
         }
       }
@@ -2280,6 +2494,11 @@
                   "$ref": "#/components/schemas/Name"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -2292,6 +2511,9 @@
             "$ref": "#/components/responses/Error"
           },
           "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -2309,7 +2531,15 @@
                   "$ref": "#/components/schemas/SiteSettings"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
           }
         }
       }
@@ -2331,9 +2561,17 @@
                   "$ref": "#/components/schemas/SiteSettings"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -2369,6 +2607,11 @@
                   "$ref": "#/components/schemas/SiteSettings"
                 }
               }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -2381,6 +2624,9 @@
             "$ref": "#/components/responses/Error"
           },
           "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -2691,6 +2937,11 @@
               "$ref": "#/components/schemas/ApiError"
             }
           }
+        },
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
         }
       },
       "Image": {
@@ -2707,6 +2958,9 @@
               "type": "string",
               "example": "nosniff"
             }
+          },
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
           }
         },
         "content": {
@@ -3686,7 +3940,8 @@
         ],
         "properties": {
           "code": {
-            "type": "string"
+            "type": "string",
+            "description": "业务错误、认证/CSRF 错误或 VALIDATION_FAILED、METHOD_NOT_ALLOWED、MEDIA_TYPE_NOT_SUPPORTED、MEDIA_TYPE_NOT_ACCEPTABLE、RESOURCE_NOT_FOUND、DATA_CONFLICT、INTERNAL_ERROR。"
           },
           "message": {
             "type": "string"
@@ -3697,7 +3952,24 @@
           },
           "fieldErrors": {
             "type": "array",
-            "items": {}
+            "items": {
+              "type": "object",
+              "required": [
+                "field",
+                "message"
+              ],
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
           }
         }
       },
@@ -4217,6 +4489,15 @@
             "description": "首页展示设置；旧版请求可省略，读取时返回数据库中已保存的值。",
             "$ref": "#/components/schemas/HomepageSettings"
           }
+        }
+      }
+    },
+    "headers": {
+      "RequestId": {
+        "description": "服务端生成的请求 ID；错误响应中与 requestId 一致。",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
         }
       }
     }

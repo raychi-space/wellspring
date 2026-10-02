@@ -166,3 +166,11 @@ POST /api/v1/admin/articles/11111111-1111-4111-8111-111111111111/publish
 - 对图片同时验证首次发布前、已发布文章新增图片、更新发布移除旧图与撤回后的直链权限。
 - 结合集成测试持续核对 OpenAPI 与实际响应；前端绑定一个契约版本，变更时重新生成或更新客户端。
 - 上线前增加登录失败限流、可信反向代理配置和备份恢复演练。
+
+## 响应与错误统一（2026-10-02）
+
+成功 JSON 使用本版本已有 DTO 或分页结构；创建返回 201 和原有 Location，登出返回 204，图片保持二进制响应。响应均携带服务端生成的 `X-Request-Id`（UUID）。数据库 Entity、存储 JSON、草稿/发布字段集合不直接作为 HTTP 响应。
+
+错误统一为 `code/message/requestId/fieldErrors`；`requestId` 与响应头一致，字段验证错误项为 `{field, message}`，无字段详情时返回空数组。业务错误与认证/CSRF 保留已有状态码和错误码。Malformed JSON、无法转换的参数、缺少必需参数或 multipart 字段返回 400 `VALIDATION_FAILED`；不支持的方法返回 405 `METHOD_NOT_ALLOWED` 并保留 Allow；不支持的请求媒体类型返回 415 `MEDIA_TYPE_NOT_SUPPORTED`；不支持的响应媒体类型返回 406 `MEDIA_TYPE_NOT_ACCEPTABLE`；未知资源返回 404 `RESOURCE_NOT_FOUND`。未归类的数据约束冲突返回 409 `DATA_CONFLICT`；未预期异常返回 500 `INTERNAL_ERROR`，详细异常仅记录到服务日志。
+
+此次分层重构使用现有表结构及迁移版本；前端按原契约解析成功响应。

@@ -16,7 +16,10 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
-import space.raychi.wellspring.article.ArticleService;
+import space.raychi.wellspring.service.ArticleService;
+import space.raychi.wellspring.dto.ArticleInput;
+import space.raychi.wellspring.dto.VersionInput;
+import space.raychi.wellspring.dto.AdminArticle;
 
 import java.net.InetSocketAddress;
 import java.util.*;
@@ -133,11 +136,11 @@ class SearchFlowTest {
         fake.stop(0);
     }
 
-    private ArticleService.AdminArticle published() {
+    private AdminArticle published() {
         var draft =
                 content.create(
                         "ARTICLE",
-                        new ArticleService.ArticleInput(
+                        new ArticleInput(
                                 null,
                                 "search-" + UUID.randomUUID(),
                                 "数据库迁移",
@@ -145,7 +148,7 @@ class SearchFlowTest {
                                 "公开 **正文** [说明](https://example.com/private-url)",
                                 List.of(),
                                 null));
-        return content.publish(draft.id(), new ArticleService.VersionInput(draft.version()));
+        return content.publish(draft.id(), new VersionInput(draft.version()));
     }
 
     private Map<String, Object> hit(String id, long version) {
@@ -169,9 +172,9 @@ class SearchFlowTest {
         var draft =
                 content.create(
                         "POST",
-                        new ArticleService.ArticleInput(
+                        new ArticleInput(
                                 null, null, "", "", "数据库随笔，公开正文。", List.of(), null));
-        var post = content.publish(draft.id(), new ArticleService.VersionInput(draft.version()));
+        var post = content.publish(draft.id(), new VersionInput(draft.version()));
         hits =
                 List.of(
                         Map.of(
@@ -197,7 +200,7 @@ class SearchFlowTest {
         var draft =
                 content.create(
                         "ARTICLE",
-                        new ArticleService.ArticleInput(
+                        new ArticleInput(
                                 null,
                                 "rollback-" + UUID.randomUUID(),
                                 "事务回滚",
@@ -212,7 +215,7 @@ class SearchFlowTest {
                             () ->
                                     content.publish(
                                             draft.id(),
-                                            new ArticleService.VersionInput(draft.version())))
+                                            new VersionInput(draft.version())))
                     .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
             assertThat(content.getAdmin(draft.id()).status()).isEqualTo("DRAFT");
             assertThat(content.getAdmin(draft.id()).version()).isZero();
@@ -231,20 +234,20 @@ class SearchFlowTest {
         var draft =
                 content.save(
                         p.id(),
-                        new ArticleService.ArticleInput(
+                        new ArticleInput(
                                 p.version(), p.slug(), "私人标题", "", "私人内容", List.of(), null));
         assertThat(state.snapshot().getFirst().version()).isEqualTo(1);
         hits = List.of(hit(p.id(), 1));
         mvc.perform(get("/api/v1/public/search").param("q", "数据库"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hits[0].title").value("数据库迁移"));
-        content.unpublish(p.id(), new ArticleService.VersionInput(draft.version()));
+        content.unpublish(p.id(), new VersionInput(draft.version()));
         mvc.perform(get("/api/v1/public/search").param("q", "数据库"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hits").isEmpty())
                 .andExpect(jsonPath("$.nextOffset").value(20));
         var hidden = content.getAdmin(p.id());
-        content.delete(p.id(), new ArticleService.VersionInput(hidden.version()));
+        content.delete(p.id(), new VersionInput(hidden.version()));
         assertThat(state.snapshot().getFirst().action()).isEqualTo("DELETE");
         assertThat(state.snapshot().getFirst().document()).isNull();
         assertThat(db.queryForObject("SELECT COUNT(*) FROM articles", Long.class)).isZero();
@@ -295,7 +298,7 @@ class SearchFlowTest {
         try {
             var running = executor.submit(worker::poll);
             assertThat(started.await(3, TimeUnit.SECONDS)).isTrue();
-            content.publish(p.id(), new ArticleService.VersionInput(p.version()));
+            content.publish(p.id(), new VersionInput(p.version()));
             release.countDown();
             running.get(5, TimeUnit.SECONDS);
             assertThat(state.snapshot().getFirst().version()).isEqualTo(2);
@@ -318,7 +321,7 @@ class SearchFlowTest {
         try {
             var restore = executor.submit(worker::restore);
             assertThat(started.await(3, TimeUnit.SECONDS)).isTrue();
-            content.publish(p.id(), new ArticleService.VersionInput(p.version()));
+            content.publish(p.id(), new VersionInput(p.version()));
             release.countDown();
             assertThat(restore.get(5, TimeUnit.SECONDS).get("restored")).isEqualTo(1);
             assertThat(state.snapshot().getFirst().version()).isEqualTo(2);
