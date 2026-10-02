@@ -1873,6 +1873,21 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "latest",
+                "oldest",
+                "title"
+              ],
+              "default": "latest"
+            },
+            "description": "排序在数据库分页前执行；并列时以 id 稳定排序。无标题内容按公开正文排序。"
           }
         ],
         "responses": {
@@ -1982,6 +1997,38 @@
             "in": "query",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "recent",
+                "oldest",
+                "type",
+                "category",
+                "tag"
+              ],
+              "default": "recent"
             }
           }
         ],

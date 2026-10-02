@@ -15,7 +15,12 @@ import space.raychi.wellspring.entity.ArticleEntity;
 @Repository
 public class ArticleMapper {
     private final JdbcTemplate db;
-    public ArticleMapper(JdbcTemplate db) { this.db = db; }
+    private final boolean mysql;
+    public ArticleMapper(JdbcTemplate db) {
+        this.db = db;
+        this.mysql = Boolean.TRUE.equals(db.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection ->
+                "MySQL".equals(connection.getMetaData().getDatabaseProductName())));
+    }
 
     private record Filter(String where, List<Object> args) {}
 
@@ -33,27 +38,70 @@ public class ArticleMapper {
                 ? " AND content_type IN ('POST','THOUGHT')" : " AND content_type=?";
     }
 
-    public long countAdmin(String status, String type) {
-        Filter filter = adminFilter(status, type);
+    private Filter adminFilter(String status, String type, String category, String tag) {
+        Filter base = adminFilter(status, type);
+        String where = base.where();
+        if (category != null && !category.isBlank()) {
+            where += " AND content_type='ARTICLE' AND draft_category=?";
+            base.args().add(category);
+        }
+        if (tag != null && !tag.isBlank()) {
+            where += mysql ? " AND JSON_CONTAINS(draft_tags,?)=1" : " AND LOCATE(?,draft_tags)>0";
+            try { base.args().add(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(tag)); }
+            catch (com.fasterxml.jackson.core.JsonProcessingException ex) { throw new IllegalArgumentException(ex); }
+        }
+        return new Filter(where, base.args());
+    }
+
+    public long countAdmin(String status, String type, String category, String tag) {
+        Filter filter = adminFilter(status, type, category, tag);
         return db.queryForObject("SELECT COUNT(*) FROM articles" + filter.where(), Long.class, filter.args().toArray());
     }
 
-    public List<ArticleEntity> selectAdmin(String status, String type, int limit, int offset) {
-        Filter filter = adminFilter(status, type);
-        filter.args().add(limit);
-        filter.args().add(offset);
-        return db.query("SELECT * FROM articles" + filter.where() +
-                " ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?", ArticleMapper::map, filter.args().toArray());
+    public List<ArticleEntity> selectAdmin(String status, String type, String category, String tag, String sort, int limit, int offset) {
+        Filter filter = adminFilter(status, type, category, tag);
+        String order = switch (sort) {
+            case "oldest" -> "updated_at ASC,id ASC";
+            case "type" -> "content_type ASC,updated_at DESC,id DESC";
+            case "category" -> "draft_category ASC,updated_at DESC,id DESC";
+            case "tag" -> "draft_tags ASC,updated_at DESC,id DESC";
+            default -> "updated_at DESC,id DESC";
+        };
+        filter.args().add(limit); filter.args().add(offset);
+        return db.query("SELECT * FROM articles" + filter.where() + " ORDER BY " + order + " LIMIT ? OFFSET ?", ArticleMapper::map, filter.args().toArray());
     }
 
-    public List<ArticleEntity> selectPublished(String type, String category) {
-        String where = " WHERE status='PUBLISHED'" + typeClause(type) +
-                (category == null || category.isBlank() ? "" : " AND content_type='ARTICLE' AND public_category=?");
+    private static Filter publicFilter(String type, String category, String tag) {
+        String where = " WHERE status='PUBLISHED'" + typeClause(type)
+                + (category == null || category.isBlank() ? "" : " AND content_type='ARTICLE' AND public_category=?")
+                + (tag == null || tag.isBlank() ? "" : " AND EXISTS (SELECT 1 FROM public_content_tags t WHERE t.article_id=articles.id AND t.name=?)");
         List<Object> args = new ArrayList<>();
         if (type != null && !type.equals("POST")) args.add(type);
         if (category != null && !category.isBlank()) args.add(category);
-        return db.query("SELECT * FROM articles" + where + " ORDER BY published_at DESC, id DESC",
-                ArticleMapper::map, args.toArray());
+        if (tag != null && !tag.isBlank()) args.add(tag);
+        return new Filter(where, args);
+    }
+
+    public long countPublished(String type, String category, String tag) {
+        Filter filter = publicFilter(type, category, tag);
+        return db.queryForObject("SELECT COUNT(*) FROM articles" + filter.where(), Long.class, filter.args().toArray());
+    }
+
+    public List<ArticleEntity> selectPublished(String type, String category, String tag, String sort, int limit, int offset) {
+        Filter filter = publicFilter(type, category, tag);
+        String order = switch (sort) {
+            case "oldest" -> "published_at ASC,id ASC";
+            case "title" -> "COALESCE(NULLIF(public_title,''),public_body) ASC,id ASC";
+            default -> "published_at DESC,id DESC";
+        };
+        filter.args().add(limit); filter.args().add(offset);
+        return db.query("SELECT * FROM articles" + filter.where() + " ORDER BY " + order + " LIMIT ? OFFSET ?",
+                ArticleMapper::map, filter.args().toArray());
+    }
+
+    public void replacePublishedTags(String id, List<String> tags) {
+        db.update("DELETE FROM public_content_tags WHERE article_id=?", id);
+        for (String tag : tags) db.update("INSERT INTO public_content_tags(article_id,name) VALUES (?,?)", id, tag);
     }
 
     public Optional<ArticleEntity> selectPublishedBySlug(String type, String slug) {

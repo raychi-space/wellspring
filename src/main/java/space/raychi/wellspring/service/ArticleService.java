@@ -210,12 +210,17 @@ public class ArticleService {
 
     @Transactional(readOnly = true)
     public PageResponse<AdminArticle> listAdmin(int page, int pageSize, String status, String contentType) {
+        return listAdmin(page, pageSize, status, contentType, null, null, "recent");
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<AdminArticle> listAdmin(int page, int pageSize, String status, String contentType, String category, String tag, String sort) {
         pagination(page, pageSize);
-        if (status != null && !status.isBlank() && !List.of("DRAFT", "PUBLISHED").contains(status))
-            throw bad("无效的内容状态。");
+        if (status != null && !status.isBlank() && !List.of("DRAFT", "PUBLISHED").contains(status)) throw bad("无效的内容状态。");
         if (contentType != null) type(contentType);
-        long total = articles.countAdmin(status, contentType);
-        List<ArticleEntity> rows = articles.selectAdmin(status, contentType, pageSize, (page - 1) * pageSize);
+        if (!List.of("recent", "oldest", "type", "category", "tag").contains(sort)) throw bad("无效的排序方式。");
+        long total = articles.countAdmin(status, contentType, category, tag);
+        var rows = articles.selectAdmin(status, contentType, category, tag, sort, pageSize, (page - 1) * pageSize);
         return new PageResponse<>(rows.stream().map(this::admin).toList(), page, pageSize, total);
     }
 
@@ -231,16 +236,17 @@ public class ArticleService {
     public PageResponse<PublicArticle> listPublic(int page, int pageSize, String contentType, String category, String tag) {
         pagination(page, pageSize);
         if (contentType != null) type(contentType);
-        // JSON tag matching remains in the service for MySQL/H2 compatibility.
-        List<ArticleEntity> rows = articles.selectPublished(contentType, category);
-        List<PublicArticle> all = rows.stream().map(this::published)
-                .filter(r -> tag == null || tag.isBlank() || r.tags().contains(tag)).toList();
-        long total = all.size();
-        List<PublicArticle> items = all.stream().skip((long) (page - 1) * pageSize).limit(pageSize)
-                .map(r -> new PublicArticle(r.id(), r.slug(), r.type(), r.title(), r.summary(),
-                        r.bodyMarkdown(), r.tags(), r.coverUrl(),
-                        r.category(), r.publishedAt(), r.publicUpdatedAt())).toList();
-        return new PageResponse<>(items, page, pageSize, total);
+        return listPublic(page, pageSize, contentType, category, tag, "latest");
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<PublicArticle> listPublic(int page, int pageSize, String contentType, String category, String tag, String sort) {
+        pagination(page, pageSize);
+        if (contentType != null) type(contentType);
+        if (!List.of("latest", "oldest", "title").contains(sort)) throw bad("无效的排序方式。");
+        long total = articles.countPublished(contentType, category, tag);
+        var rows = articles.selectPublished(contentType, category, tag, sort, pageSize, (page - 1) * pageSize);
+        return new PageResponse<>(rows.stream().map(this::published).toList(), page, pageSize, total);
     }
 
     @Transactional(readOnly = true)
@@ -303,6 +309,7 @@ public class ArticleService {
         }
         Instant now = Instant.now();
         articles.publish(id, displayType(current.type()), displayCategory(current.type(), current.draftCategory()), now);
+        articles.replacePublishedTags(id, tags(current.draftTags()));
         assets.replacePublishedReferences(id, assetIds);
         search.capture(id, false);
         summaries.enqueue(id, input.assistantId());
