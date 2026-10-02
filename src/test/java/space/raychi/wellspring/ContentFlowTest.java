@@ -57,6 +57,80 @@ class ContentFlowTest {
     @Autowired ObjectMapper json;
 
     @Test
+    void databasePaginationKeepsCaseDistinctTagsAndPublishedSnapshot() {
+        String tag = "Page" + java.util.UUID.randomUUID().toString().substring(0, 8);
+        String lower = tag.toLowerCase();
+        taxonomy.createTag(new NameDto(tag));
+        taxonomy.createTag(new NameDto(lower));
+        var ids = new java.util.ArrayList<String>();
+        try {
+            for (int i = 0; i < 55; i++) {
+                var item = contents.create("POST", null);
+                ids.add(item.id());
+                item = contents.save(item.id(), new ArticleInput(item.version(), null, String.format("Page %02d", i), "",
+                        "Published body", List.of(tag), null, null));
+                contents.publish(item.id(), new VersionInput(item.version()));
+            }
+            var first = contents.listPublic(1, 50, "POST", null, tag, "title");
+            var second = contents.listPublic(2, 50, "POST", null, tag, "title");
+            assertThat(first.total()).isEqualTo(55);
+            assertThat(first.items()).hasSize(50);
+            assertThat(second.items()).hasSize(5);
+            var adminPage = contents.listAdmin(2, 50, "PUBLISHED", "POST", null, tag, "oldest");
+            assertThat(adminPage.total()).isEqualTo(55);
+            assertThat(adminPage.items()).hasSize(5);
+            assertThat(contents.listAdmin(1, 50, "PUBLISHED", "POST", null, lower, "recent").total()).isZero();
+            assertThat(first.items().get(0).title()).isEqualTo("Page 00");
+            assertThat(second.items().get(0).title()).isEqualTo("Page 50");
+            assertThat(contents.listPublic(1, 50, "POST", null, lower).total()).isZero();
+            var item = contents.getAdmin(ids.get(0));
+            item = contents.save(item.id(), new ArticleInput(item.version(), null, item.title(), "", "New draft", List.of(lower), null, null));
+            assertThat(contents.listPublic(1, 50, "POST", null, tag).total()).isEqualTo(55);
+            assertThat(contents.listPublic(1, 50, "POST", null, lower).total()).isZero();
+            assertThat(contents.listAdmin(1, 50, "PUBLISHED", "POST", null, lower, "recent").total()).isEqualTo(1);
+            contents.publish(item.id(), new VersionInput(item.version()));
+            assertThat(contents.listPublic(1, 50, "POST", null, tag).total()).isEqualTo(54);
+            assertThat(contents.listPublic(1, 50, "POST", null, lower).total()).isEqualTo(1);
+            assertThat(contents.listPublic(3, 50, "POST", null, tag).items()).isEmpty();
+        } finally {
+            for (String id : ids) contents.delete(id, new VersionInput(contents.getAdmin(id).version()));
+        }
+    }
+
+    @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
+    @Autowired space.raychi.wellspring.service.AssetCleanupWorker cleanup;
+
+    @Test
+    void assetCleanupWaitsForCommitAndRetainsFailedFilesForRetry() throws Exception {
+        var item = contents.create("ARTICLE", null);
+        var uploaded = assets.upload(item.id(), new MockMultipartFile("file", "pixel.png", "image/png",
+                java.util.Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j4WQAAAAASUVORK5CYII=")));
+        String key = uploaded.id().replace("-", "");
+        var path = java.nio.file.Path.of("target/test-assets", key);
+        var tx = new org.springframework.transaction.support.TransactionTemplate(transactions);
+        tx.executeWithoutResult(status -> {
+            contents.delete(item.id(), new VersionInput(contents.getAdmin(item.id()).version()));
+            status.setRollbackOnly();
+        });
+        cleanup.clean();
+        assertThat(java.nio.file.Files.exists(path)).isTrue();
+        assertThat(contents.getAdmin(item.id())).isNotNull();
+        contents.delete(item.id(), new VersionInput(contents.getAdmin(item.id()).version()));
+        // A transient filesystem failure keeps the durable queue entry for another pass.
+        java.nio.file.Files.delete(path);
+        java.nio.file.Files.createDirectory(path);
+        java.nio.file.Files.writeString(path.resolve("busy"), "test");
+        cleanup.clean();
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM asset_deletion_queue WHERE storage_key=?", Integer.class, key)).isEqualTo(1);
+        java.nio.file.Files.delete(path.resolve("busy"));
+        java.nio.file.Files.delete(path);
+        java.nio.file.Files.write(path, new byte[] {1});
+        cleanup.clean();
+        assertThat(java.nio.file.Files.exists(path)).isFalse();
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM asset_deletion_queue WHERE storage_key=?", Integer.class, key)).isZero();
+    }
+
+    @Test
     @WithMockUser
     void staleSettingsSaveReturnsConflictOverHttp() throws Exception {
         String staleInput = json.writeValueAsString(settings.adminSettings());

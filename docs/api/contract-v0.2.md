@@ -64,3 +64,11 @@ Flyway V2 在原 `articles` 表增加类型与分类字段，不改变原 ID、s
 结果写入公开摘要；只有工作稿正文、标题与旧摘要仍与发布快照相同时才同步工作稿摘要，不把私人改动带到公开内容。完成更新文章 version（updatedAt/publicUpdatedAt 保持内容保存/发布时间口径）并同步搜索投影，客户端需使用最新 version 保存。只对同一 jobId、同一 publicUpdatedAt 且仍 PUBLISHED 的快照应用；重新发布替换任务，撤回取消，删除清理。没有把 Agent 核心接口加入文章专属字段。
 
 分类标签目录接口不变。管理台对全部已有词做输入联想；已有词复用，未匹配词通过现有 POST 接口创建，409 NAME_CONFLICT 后刷新并复用，标签保持大小写区分。尚未按回车的输入在保存/发布前提交。
+
+## 数据库分页与归档排序（2026-10-03）
+
+`GET /api/v1/public/contents` 新增可选 `sort=latest|oldest|title`，默认 latest。排序先于分页，日期并列按 id 稳定排序；title 使用公开标题，无标题时使用公开正文，字符串顺序由数据库排序规则决定。未知排序返回 400 VALIDATION_FAILED。page/pageSize/total 与原响应兼容。
+
+标签筛选使用发布时同步的大小写敏感索引；保存工作稿不改变该索引。V8 从已有 public_tags 回填索引；V9 增加附件删除队列。删除内容事务提交后后台回收文件，失败保留队列重试，回滚不删除文件。不会扫描或删除旧目录中的未知文件。
+
+管理列表新增 category、tag、sort（recent/oldest/type/category/tag），筛选和排序先于数据库分页。标签匹配工作稿中的完整标签且区分大小写；MySQL 使用 JSON_CONTAINS。管理台每次只加载一页，筛选重置页码；字数与类型统计明确标为本页统计。

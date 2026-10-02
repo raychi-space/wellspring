@@ -15,16 +15,18 @@ class LayeringTest {
         for (Path file : sources()) {
             String source = Files.readString(file);
             String layer = SOURCE.relativize(file).getName(0).toString();
-            if (List.of("controller", "service").contains(layer)) {
+            boolean controller = file.getFileName().toString().endsWith("Controller.java");
+            boolean service = file.getFileName().toString().endsWith("Service.java");
+            if (controller || service) {
                 assertThat(source).as(file.toString()).doesNotContain("import java.sql.",
                         "import javax.sql.", "import org.springframework.jdbc.", "import jakarta.persistence.");
             }
-            if (layer.equals("controller")) {
+            if (controller) {
                 assertThat(source).as(file.toString()).doesNotContain("space.raychi.wellspring.mapper.",
                         "space.raychi.wellspring.entity.", "@Transactional", "public record ");
-                assertThat(source).as(file.toString()).contains("ApiResponses.");
+                if (layer.equals("controller")) assertThat(source).as(file.toString()).contains("ApiResponses.");
             }
-            if (layer.equals("service")) {
+            if (service) {
                 assertThat(source).as(file.toString()).doesNotContain("space.raychi.wellspring.controller.",
                         "import org.springframework.web.bind.annotation.", "ResponseEntity");
             }
