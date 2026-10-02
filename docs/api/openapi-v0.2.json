@@ -1071,7 +1071,8 @@
               }
             }
           }
-        }
+        },
+        "description": " Chat defaults to conversation; a quoted validated selection grants an optional replacement collector, with explicit edit intent and editor confirmation. Summarize may be invoked by a separate automatic UI lifecycle."
       }
     },
     "/admin/ai/turns/{id}": {
