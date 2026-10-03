@@ -14,6 +14,33 @@ class WritingServiceTest {
   private final WritingService service = new WritingService(client, json);
 
   @Test
+  void metadataRequiresStructuredFieldsAndBuildsFiveWordSlug() throws Exception {
+    final String[] origin = {null};
+    when(client.request(eq("POST"), eq("/runs"), any(), any())).thenAnswer(call -> {
+      var run = (com.fasterxml.jackson.databind.JsonNode) call.getArgument(2);
+      origin[0] = run.path("origin").asText();
+      var tool = run.path("bindings").get(1);
+      assertThat(tool.path("name").asText()).isEqualTo("propose_metadata");
+      assertThat(tool.path("schema").path("required").toString()).contains("title", "summary", "englishTitle");
+      return json.readTree("{\"id\":\"task-meta\",\"status\":\"pending\"}");
+    });
+    service.create(json.readTree("""
+      {"requestId":"meta","assistantId":"assistant","mode":"metadata","message":"生成","history":[],"context":{"title":"标题","documentMarkdown":"# 正文"}}
+      """), "owner");
+    when(client.request(eq("GET"), eq("/tasks/task-meta"), isNull(), isNull())).thenReturn(json.createObjectNode().put("origin", origin[0]).put("status", "succeeded").put("taskType", "configured_run"));
+    when(client.request(eq("GET"), eq("/tasks/task-meta/result"), isNull(), isNull())).thenReturn(json.readTree("""
+      {"result":{"reply":"","collected":{"title":"大标题","summary":"文章摘要","englishTitle":"How to Build Better Writing Tools Today"}}}
+      """));
+    var proposal = service.get("task-meta", "owner").path("result").path("proposal");
+    assertThat(proposal.path("kind").asText()).isEqualTo("metadata");
+    assertThat(proposal.path("slug").asText()).isEqualTo("how-to-build-better-writing");
+    when(client.request(eq("GET"), eq("/tasks/task-meta/result"), isNull(), isNull())).thenReturn(json.readTree("""
+      {"result":{"collected":{"title":"标题","summary":"摘要","englishTitle":"中文"}}}
+      """));
+    assertThatThrownBy(() -> service.get("task-meta", "owner")).isInstanceOf(ApiException.class);
+  }
+
+  @Test
   void rewriteBindsExactSelectionAndUsesScopedIdempotency() throws Exception {
     when(client.request(eq("POST"), eq("/runs"), any(), any()))
         .thenAnswer(

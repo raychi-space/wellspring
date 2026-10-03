@@ -80,3 +80,9 @@ Flyway V2 在原 `articles` 表增加类型与分类字段，不改变原 ID、s
 错误采用统一格式：400 `CURRENT_PASSWORD_INVALID`（旧密码错误，保留当前会话）；400 `VALIDATION_FAILED`（长度/空值/相同密码）；401 `AUTH_REQUIRED`；403 `CSRF_INVALID`；409 `PASSWORD_CHANGED`（并发修改，要求重新登录）。确认密码仅由管理台校验，不传到服务端。
 
 V10 增加 MySQL `admin_account` 单管理员记录，存 BCrypt 哈希与递增凭据版本。首次空表使用环境变量初始化；已有账号时忽略初始化凭据，重启不能覆盖网页修改。修改后不返回或记录明文/哈希。环境变量不再充当密码重置入口，账号记录应随 MySQL 一起备份。认证仍使用 Spring Security，会话不改为浏览器持有密码。
+
+## 发布前元数据（2026-10-03）
+
+新增写作 mode `metadata`，仍使用站长会话、CSRF、任务所有者隔离和现有 Agent 资源限制。context 提供 title 与 documentMarkdown；工具要求 title（1–200）、summary（1–600）、englishTitle（1–300）。成功 proposal.kind 为 metadata，同时返回 slug：英文标题小写、按非字母数字分词，取前五词用连字符连接（最长120）。无有效英文单词或超长结果拒绝。任务本身不保存或发布内容。
+
+管理内容 PUT 可传 publicationMetadata=true，保留显式发布标题、摘要、别名；版本和别名唯一约束照常生效，首次发布后别名不可修改。发布 POST 可传 metadataReviewed=true，直接发布已确认工作稿，取消旧摘要任务且不再排队覆盖摘要。缺省 false 保留旧客户端兼容行为。界面先保存工作稿，再生成并保存元数据；仅确认发布才公开，模型失败保留工作稿，用户可重试。前端会等待任务完成，关闭浏览器可能中断元数据的回写，但已保存正文不会丢失。

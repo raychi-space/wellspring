@@ -59,7 +59,7 @@ public class WritingService {
         assistantId = id(string(request, "assistantId", 80, false));
     String mode = string(request, "mode", 20, false),
         message = string(request, "message", 20000, false);
-    if (!Set.of("chat", "rewrite", "summarize").contains(mode))
+    if (!Set.of("chat", "rewrite", "summarize", "metadata").contains(mode))
       throw AgentClient.error(422, "INVALID_INPUT");
     var context = request.path("context");
     fields(context, "title", "selection", "documentMarkdown", "currentSummary");
@@ -83,6 +83,8 @@ public class WritingService {
           case "rewrite" ->
               "Read read_selection and submit exactly one propose_replacement with its exact"
                   + " selectionId. Only propose a change; do not claim it was applied.";
+          case "metadata" ->
+              "Read read_document and submit exactly one propose_metadata. Generate a concise title in the document language, a faithful summary, and translate that title into English as englishTitle. Do not change the document or publish it.";
           case "summarize" ->
               "Read the complete read_document snapshot and submit exactly one propose_summary."
                   + " Only propose a summary; do not claim it was applied.";
@@ -138,7 +140,12 @@ public class WritingService {
     if (!mode.equals("chat") || selectionId != null) {
       var schema = json.createObjectNode().put("type", "object").put("additionalProperties", false);
       var properties = schema.putObject("properties");
-      if (!mode.equals("summarize")) {
+      if (mode.equals("metadata")) {
+        properties.putObject("title").put("type", "string").put("minLength", 1).put("maxLength", 200);
+        properties.putObject("summary").put("type", "string").put("minLength", 1).put("maxLength", 600);
+        properties.putObject("englishTitle").put("type", "string").put("minLength", 1).put("maxLength", 300);
+        schema.putArray("required").add("title").add("summary").add("englishTitle");
+      } else if (!mode.equals("summarize")) {
         properties.putObject("selectionId").put("type", "string").put("const", selectionId);
         properties.putObject("newText").put("type", "string").put("maxLength", 20000);
         schema.putArray("required").add("selectionId").add("newText");
@@ -152,7 +159,7 @@ public class WritingService {
       }
       var collector =
           binding(
-              mode.equals("summarize") ? "propose_summary" : "propose_replacement",
+              mode.equals("metadata") ? "propose_metadata" : mode.equals("summarize") ? "propose_summary" : "propose_replacement",
               "result.collect",
               "Submit one suggestion for user confirmation.");
       collector.set("schema", schema);
@@ -196,7 +203,16 @@ public class WritingService {
           throw AgentClient.error(502, "AGENT_PROTOCOL_ERROR");
         if (proposal.has("selectionId") && proposal.has("newText"))
           object.put("kind", "replacement");
-        else if (proposal.has("summary")) object.put("kind", "summary");
+        else if (proposal.has("englishTitle")) {
+          String title = string(proposal, "title", 200, false);
+          String summary = string(proposal, "summary", 600, false);
+          String english = string(proposal, "englishTitle", 300, false);
+          String slug = english.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", " ").trim();
+          if (slug.isBlank()) throw AgentClient.error(502, "AGENT_PROTOCOL_ERROR");
+          slug = String.join("-", Arrays.stream(slug.split(" +")).limit(5).toList());
+          if (slug.length() > 120) throw AgentClient.error(502, "AGENT_PROTOCOL_ERROR");
+          object.put("kind", "metadata").put("title", title.trim()).put("summary", summary.trim()).put("slug", slug);
+        } else if (proposal.has("summary")) object.put("kind", "summary");
         else throw AgentClient.error(502, "AGENT_PROTOCOL_ERROR");
         converted.set("proposal", proposal);
       }

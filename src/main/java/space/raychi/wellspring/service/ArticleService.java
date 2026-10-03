@@ -275,7 +275,7 @@ public class ArticleService {
         String title = shortValue(input.title(), 255, "标题");
         String summary = shortValue(input.summary(), 600, "摘要");
         String markdown = body(input.bodyMarkdown());
-        if (current.type().equals("ARTICLE")) title = documentTitle(markdown, documentTitle(current.draftBody(), "").isBlank() ? title : "");
+        if (current.type().equals("ARTICLE") && !Boolean.TRUE.equals(input.publicationMetadata())) title = documentTitle(markdown, documentTitle(current.draftBody(), "").isBlank() ? title : "");
         String effectiveType = displayType(current.type());
         String tagData = checkedTags(effectiveType, input.tags(), current.draftTags());
         validateCover(input.coverUrl());
@@ -312,7 +312,8 @@ public class ArticleService {
         articles.replacePublishedTags(id, tags(current.draftTags()));
         assets.replacePublishedReferences(id, assetIds);
         search.capture(id, false);
-        summaries.enqueue(id, input.assistantId());
+        if (Boolean.TRUE.equals(input.metadataReviewed())) summaryJobs.cancel(id);
+        else summaries.enqueue(id, input.assistantId());
         return getAdmin(id);
     }
 
