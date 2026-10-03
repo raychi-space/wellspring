@@ -36,3 +36,9 @@ GET 根据底层调用者 owner、taskType=configured_run 与站主 origin 校�
 Agent 默认关闭：`RAYCHI_AGENT_ENABLED=true`、`RAYCHI_AGENT_URL=http://127.0.0.1:8092`、`RAYCHI_AGENT_TOKEN=<服务端调用凭据>`。在 core 配置匹配的调用者 scopes configure/run/read、持久 DB 和 AGENT_SECRET_KEY。不依赖 search-core，不跨库。后台保存 Provider，然后分别测试聊天/工具；保存 Assistant 后在文章编辑器选择它。
 
 停用 Agent 集成可设 ENABLED=false；内容保存/发布功能照常可用。助手配置仍不存站点数据库；V7 增加发布摘要任务记录，见内容契约。core 数据库与加密主密钥需分别安全备份，历史任务不可通过改主密钥直接解密。
+
+## 发布前元数据（2026-10-03）
+
+新增写作 mode `metadata`，仍使用站长会话、CSRF、任务所有者隔离和现有 Agent 资源限制。context 提供 title 与 documentMarkdown；工具要求 title（1–200）、summary（1–600）、englishTitle（1–300）。成功 proposal.kind 为 metadata，同时返回 slug：英文标题小写、按非字母数字分词，取前五词用连字符连接（最长120）。无有效英文单词或超长结果拒绝。任务本身不保存或发布内容。
+
+管理内容 PUT 可传 publicationMetadata=true，保留显式发布标题、摘要、别名；版本和别名唯一约束照常生效，首次发布后别名不可修改。发布 POST 可传 metadataReviewed=true，直接发布已确认工作稿，取消旧摘要任务且不再排队覆盖摘要。缺省 false 保留旧客户端兼容行为。界面先保存工作稿，再生成并保存元数据；仅确认发布才公开，模型失败保留工作稿，用户可重试。前端会等待任务完成，关闭浏览器可能中断元数据的回写，但已保存正文不会丢失。

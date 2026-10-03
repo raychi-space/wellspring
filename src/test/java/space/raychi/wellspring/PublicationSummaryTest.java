@@ -55,6 +55,23 @@ class PublicationSummaryTest {
         return articles.publish(draft.id(), new VersionInput(draft.version(), "assistant-demo"));
     }
 
+    @Test void reviewedMetadataIsPrivateUntilPublishedAndNeverOverwritten() {
+        var draft = draft("# 正文标题");
+        var prepared = articles.save(draft.id(), new ArticleInput(draft.version(), "first-five-english-title-words", "预览标题", "确认摘要", draft.bodyMarkdown(), List.of(), null, "未分类", true));
+        assertThat(prepared.title()).isEqualTo("预览标题");
+        assertThatThrownBy(() -> articles.getPublic(prepared.slug())).isInstanceOf(space.raychi.wellspring.api.ApiException.class);
+        var published = articles.publish(prepared.id(), new VersionInput(prepared.version(), null, true));
+        worker.poll();
+        assertThat(articles.getPublic(published.slug()).summary()).isEqualTo("确认摘要");
+        assertThat(articles.getPublic(published.slug()).title()).isEqualTo("预览标题");
+        verify(writing, never()).create(any(), anyString());
+        var next = articles.save(published.id(), new ArticleInput(published.version(), published.slug(), "新标题", "新摘要", "# 新正文", List.of(), null, "未分类", true));
+        assertThat(articles.getPublic(published.slug()).summary()).isEqualTo("确认摘要");
+        assertThatThrownBy(() -> articles.save(next.id(), new ArticleInput(next.version(), "changed-address", "标题", "摘要", "# 正文", List.of(), null, "未分类", true))).isInstanceOf(space.raychi.wellspring.api.ApiException.class);
+        articles.publish(next.id(), new VersionInput(next.version(), null, true));
+        assertThat(articles.getPublic(published.slug()).summary()).isEqualTo("新摘要");
+    }
+
     @Test void onlyPublishingQueuesSummaryAndBothSnapshotsPersist() {
         var draft = draft("# 发布版\n\n正文");
         assertThat(draft.summaryStatus()).isEqualTo("NONE");
