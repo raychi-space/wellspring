@@ -2961,6 +2961,129 @@
           }
         }
       }
+    },
+    "/admin/ai/turns/{id}/events": {
+      "get": {
+        "summary": "ADMIN; owned turn SSE stream; turn events carry AIWritingTask, stream-error closes the stream",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Live cumulative text and terminal task. Disconnect does not cancel the task; reconnect using the same id.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See writing-agent-v1.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -3590,6 +3713,11 @@
               },
               "selection": {
                 "$ref": "#/components/schemas/AISelectionSnapshot"
+              },
+              "documentId": {
+                "type": "string",
+                "maxLength": 80,
+                "description": "Client snapshot identity enabling optional whole-document edits without a selection."
               }
             },
             "required": [
@@ -3681,6 +3809,29 @@
               "slug"
             ],
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "documentId",
+              "newText"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "document"
+                ]
+              },
+              "documentId": {
+                "type": "string"
+              },
+              "newText": {
+                "type": "string",
+                "maxLength": 100000
+              }
+            }
           }
         ]
       },
@@ -3737,6 +3888,10 @@
               "retryable"
             ],
             "additionalProperties": false
+          },
+          "partialReply": {
+            "type": "string",
+            "description": "Transient cumulative model text while running; replaced by final result.reply."
           }
         },
         "required": [
@@ -3825,7 +3980,8 @@
             "items": {
               "type": "string",
               "maxLength": 40
-            }
+            },
+            "description": "Draft tag names; missing catalog entries are created atomically on successful publication, never on draft save. Maximum 20 names, 40 characters each, no control characters."
           },
           "coverUrl": {
             "type": [
@@ -4197,7 +4353,8 @@
             "items": {
               "type": "string",
               "maxLength": 40
-            }
+            },
+            "description": "Draft tag names; missing catalog entries are created atomically on successful publication, never on draft save. Maximum 20 names, 40 characters each, no control characters."
           },
           "coverUrl": {
             "type": [
