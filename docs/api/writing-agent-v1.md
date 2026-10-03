@@ -16,16 +16,16 @@ POST `turns` 返回202 `{turnId,status}`；GET `turns/{id}` 返回状态、成�
 
 ```ts
 interface TurnRequest {
-  requestId: string; assistantId: string; mode: 'chat'|'rewrite'|'summarize';
+  requestId: string; assistantId: string; mode: 'chat'|'rewrite'|'summarize'|'metadata';
   message: string; history: {role:'user'|'assistant';content:string}[];
-  context: {title:string; documentMarkdown?:string; currentSummary?:string;
+  context: {title:string; documentId?:string; documentMarkdown?:string; currentSummary?:string;
     selection?:{selectionId:string;beforeMarkdown:string;contextBefore:string;contextAfter:string}};
 }
 ```
 
 requestId 为80字符内标识符；服务器加站主摘要范围作为底层幂等键。相同 payload 重发复用任务；不同 payload 同 key409。history 至多20完整用户/助手轮次；禁止 system/tool 消息。title200、message及每个历史消息20k；documentMarkdown200k；selection原文20k、前后文各500；currentSummary2000。内核助手字符预算还会校验整个上下文，过量422 CONTEXT_LIMIT，未截断全文。
 
-chat 需要 documentMarkdown；read_document、可选 read_selection 只读取本轮快照。有有效selection时额外开放可选propose_replacement（固定selectionId Schema）；默认普通对话，模型仅在当前用户明确要求修改引用选区时才应提出建议，普通问答不要求收集结果。没有选区不开放编辑建议工具，提示先引用有效选区。所有建议仍须本地确认，模型不能直接修改正文。rewrite 必须有 selection，仅 read_selection 与 propose_replacement；结果 Schema 固定 selectionId 与 newText（可空，表示删除）。summarize 是受控生成建议接口；管理台不再在停顿时自动调用。发布摘要由后台任务使用已发布全文与摘要，提供 read_document 和 propose_summary（非空，最多1000）。工具名称、描述、权限与 Schema 由 wellspring 注入，浏览器不得提交绑定或 Schema；内核只执行通用 snapshot.read/result.collect。写作指令作为服务组装内容，用户提示词不能扩大工具授权。
+chat 需要 documentMarkdown；read_document、可选 read_selection 只读取本轮快照。有有效selection时额外开放可选propose_replacement（固定selectionId Schema）；默认普通对话，模型仅在当前用户明确要求修改引用选区时才应提出建议，普通问答不要求收集结果。没有选区且提供 documentId 时开放 propose_document，固定快照标识并返回完整修订 Markdown；旧客户端没有 documentId 时仍只读。所有建议仍须本地确认，模型不能直接修改正文。rewrite 必须有 selection，仅 read_selection 与 propose_replacement；结果 Schema 固定 selectionId 与 newText（可空，表示删除）。summarize 是受控生成建议接口；管理台不再在停顿时自动调用。发布摘要由后台任务使用已发布全文与摘要，提供 read_document 和 propose_summary（非空，最多1000）。工具名称、描述、权限与 Schema 由 wellspring 注入，浏览器不得提交绑定或 Schema；内核只执行通用 snapshot.read/result.collect。写作指令作为服务组装内容，用户提示词不能扩大工具授权。
 
 成功 result `{reply,proposal?}`；proposal 为 `{kind:'replacement',selectionId,newText}` 或 `{kind:'summary',summary}`。该 turns 接口不修改正文、摘要或发布状态；独立的发布摘要任务在快照校验后持久化摘要，见内容契约。原文与位置由浏览器的当前编辑器书签验证，模型不提供位置。rewrite/summarize 缺有效收集结果时任务失败。
 
@@ -42,3 +42,11 @@ Agent 默认关闭：`RAYCHI_AGENT_ENABLED=true`、`RAYCHI_AGENT_URL=http://127.
 新增写作 mode `metadata`，仍使用站长会话、CSRF、任务所有者隔离和现有 Agent 资源限制。context 提供 title 与 documentMarkdown；工具要求 title（1–200）、summary（1–600）、englishTitle（1–300）。成功 proposal.kind 为 metadata，同时返回 slug：英文标题小写、按非字母数字分词，取前五词用连字符连接（最长120）。无有效英文单词或超长结果拒绝。任务本身不保存或发布内容。
 
 管理内容 PUT 可传 publicationMetadata=true，保留显式发布标题、摘要、别名；版本和别名唯一约束照常生效，首次发布后别名不可修改。发布 POST 可传 metadataReviewed=true，直接发布已确认工作稿，取消旧摘要任务且不再排队覆盖摘要。缺省 false 保留旧客户端兼容行为。界面先保存工作稿，再生成并保存元数据；仅确认发布才公开，模型失败保留工作稿，用户可重试。前端会等待任务完成，关闭浏览器可能中断元数据的回写，但已保存正文不会丢失。
+
+## 全文建议与实时回复
+
+chat 的 context.documentId 标识本轮编辑器快照；不需要选择文字。propose_document 收集 {documentId,newText}，newText 为完整 Markdown（最多100000字符，可为空表示清空），转换为 kind=document。前端展示前后内容，接受时再次比较当前正文与原快照；已经变化则拒绝覆盖。接受只写入本地编辑器，保存及发布仍需用户操作。
+
+GET turns/{id}/events 返回 text/event-stream，权限及所有者校验与状态查询相同。event: turn 的 JSON 为 {turnId,status,partialReply?,result?,error?}；partialReply 是本次模型调用累计文本，应替换同一气泡而非追加。只有最终 result 中的 proposal 可用于修改，流式文本不能作为工具调用。成功或失败发送终态后关闭；异常以 stream-error 事件结束。断线可使用原 requestId 和任务 ID 重新连接，不会重复创建任务。连接关闭不会取消底层任务，任务仍受助手超时约束。
+
+模型 SSE 由 Agent 解析后公开内存中的 partialReply；Wellspring 每150ms读取任务变化并通过 SSE 转发。工具参数及凭据不作为增量文本公开，任务结束即清理内存中的增量副本。单个进程同时最多8条浏览器流，连接180秒超时，会话失效停止转发。发布元数据仍使用完整结构化结果。

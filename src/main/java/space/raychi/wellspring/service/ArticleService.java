@@ -35,6 +35,7 @@ import space.raychi.wellspring.dto.PublicArticle;
 import space.raychi.wellspring.dto.VersionInput;
 import space.raychi.wellspring.entity.ArticleDraftEntity;
 import space.raychi.wellspring.entity.ArticleEntity;
+import space.raychi.wellspring.entity.TaxonomyEntity;
 import space.raychi.wellspring.mapper.ArticleMapper;
 import space.raychi.wellspring.mapper.AssetMapper;
 import space.raychi.wellspring.mapper.TaxonomyMapper.Kind;
@@ -73,8 +74,8 @@ public class ArticleService {
         List<String> cleaned = value == null ? List.of() : value.stream()
                 .filter(Objects::nonNull).map(String::trim).filter(s -> !s.isBlank()).distinct().toList();
         if (cleaned.size() > 20) throw bad("标签不能超过 20 个。");
-        if (cleaned.stream().anyMatch(s -> s.length() > 40))
-            throw bad("标签不能超过 40 个字符。");
+        if (cleaned.stream().anyMatch(s -> s.length() > 40 || s.chars().anyMatch(Character::isISOControl)))
+            throw bad("标签不能超过 40 个字符或包含控制字符。");
         try { return json.writeValueAsString(cleaned); }
         catch (JsonProcessingException ex) { throw new IllegalStateException(ex); }
     }
@@ -148,11 +149,8 @@ public class ArticleService {
             if (value != null && !value.isEmpty()) throw bad("思考不使用标签。");
             return "[]";
         }
-        String encoded = tagsJson(value);
-        for (String name : tags(encoded)) {
-            if (!taxonomy.exists(Kind.TAG, name) && !tags(previous).contains(name)) throw bad("标签不存在：" + name);
-        }
-        return encoded;
+        // Draft-only names are intentionally absent from the shared tag catalog.
+        return tagsJson(value);
     }
 
     private static void noImages(String type, String markdown, String cover) {
@@ -181,7 +179,7 @@ public class ArticleService {
         String id = UUID.randomUUID().toString();
         String slug = kind.equals("ARTICLE")
                 ? (input == null || input.slug() == null || input.slug().isBlank() ? dateSlug(id) : input.slug().trim())
-                : dateSlug(id);
+                : id;
         validateSlug(slug);
         String title = input == null ? "" : shortValue(input.title(), 255, "标题");
         String summary = input == null ? "" : shortValue(input.summary(), 600, "摘要");
@@ -308,6 +306,13 @@ public class ArticleService {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "ASSET_REFERENCE_INVALID", "正文引用的图片无效。");
         }
         Instant now = Instant.now();
+        // Catalog creation and publication share this transaction, including downstream failures.
+        for (String name : tags(current.draftTags()).stream().sorted().toList()) {
+            if (!taxonomy.exists(Kind.TAG, name)) {
+                try { taxonomy.insert(Kind.TAG, new TaxonomyEntity(name, now)); }
+                catch (DuplicateKeyException alreadyCreated) { /* Concurrent publisher reused this name. */ }
+            }
+        }
         articles.publish(id, displayType(current.type()), displayCategory(current.type(), current.draftCategory()), now);
         articles.replacePublishedTags(id, tags(current.draftTags()));
         assets.replacePublishedReferences(id, assetIds);

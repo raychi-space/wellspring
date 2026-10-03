@@ -24,10 +24,13 @@ class AgentAuthorizationTest {
   @MockitoBean space.raychi.wellspring.service.AdminAccountService accounts;
   @MockitoBean AgentClient client;
   @MockitoBean WritingService writing;
+  @MockitoBean WritingStreams streams;
 
   @Test
   void anonymousAndNonAdminCannotReadConfiguration() throws Exception {
     mvc.perform(get("/api/v1/admin/ai/providers")).andExpect(status().isUnauthorized());
+    mvc.perform(get("/api/v1/admin/ai/turns/task/events")).andExpect(status().isUnauthorized());
+    mvc.perform(get("/api/v1/admin/ai/turns/task/events").with(user("viewer").roles("VIEWER"))).andExpect(status().isForbidden());
     mvc.perform(get("/api/v1/admin/ai/providers").with(user("viewer").roles("VIEWER")))
         .andExpect(status().isForbidden());
   }
