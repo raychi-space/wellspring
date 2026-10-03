@@ -8,7 +8,7 @@
 
 Provider：name/enabled/type=openai-compatible/baseUrl/models；apiKeyAction=retain（默认，省略 key）、replace（传 apiKey）、clear（明确清除，不传 key）。返回 id/version 与 hasApiKey、恒定掩码；无 key 或加密数据。baseUrl 是 `/chat/completions` 之前的前缀。支持 HTTPS，测试可用 loopback HTTP。
 
-Assistant：name/enabled/providerId/model/systemPrompt/fixedContext/generationOptions.maxOutputTokens/historyTurns/maxContextChars/timeoutMs。保留最近完整轮次，全文不能静默截断。配置仅影响新任务；执行中的任务与原任务重试使用创建时快照。连接测试单独显示 connection 和 tools，不以只可聊天代表能执行修改。
+Assistant：可选 icon（`lucide:<slug>` 或 `emoji:<slug>`，最长 64 字符，省略时新建默认 `lucide:bot`、更新保留原值；仅用于展示）/name/enabled/providerId/model/systemPrompt/fixedContext/generationOptions.maxOutputTokens/historyTurns/maxContextChars/timeoutMs。保留最近完整轮次，全文不能静默截断。配置仅影响新任务；执行中的任务与原任务重试使用创建时快照。连接测试单独显示 connection 和 tools，不以只可聊天代表能执行修改。
 
 ## 写作任务
 
