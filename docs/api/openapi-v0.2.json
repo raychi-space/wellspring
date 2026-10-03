@@ -3523,7 +3523,8 @@
             "enum": [
               "chat",
               "rewrite",
-              "summarize"
+              "summarize",
+              "metadata"
             ]
           },
           "message": {
@@ -3628,6 +3629,38 @@
             "required": [
               "kind",
               "summary"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "metadata"
+              },
+              "title": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "summary": {
+                "type": "string",
+                "maxLength": 600
+              },
+              "englishTitle": {
+                "type": "string",
+                "maxLength": 300
+              },
+              "slug": {
+                "type": "string",
+                "maxLength": 120
+              }
+            },
+            "required": [
+              "kind",
+              "title",
+              "summary",
+              "englishTitle",
+              "slug"
             ],
             "additionalProperties": false
           }
@@ -3758,7 +3791,7 @@
           "title": {
             "type": "string",
             "maxLength": 255,
-            "description": "ARTICLE: first top-level Markdown heading overrides this field. Without a heading legacy separate titles are preserved; new studio asks for a heading."
+            "description": "默认从首个顶层 Markdown 标题提取；保存 publicationMetadata=true 时保留显式发布标题。"
           },
           "summary": {
             "type": "string",
@@ -3782,6 +3815,11 @@
               "null"
             ],
             "maxLength": 1000
+          },
+          "publicationMetadata": {
+            "type": "boolean",
+            "default": false,
+            "description": "保存时为 true 使用显式发布标题，不从正文覆盖；不修改正文或公开快照。"
           }
         },
         "description": "创建时各字段可省略；保存时 version 必填，未给字段将按服务端规则清空或保留。"
@@ -3804,6 +3842,11 @@
             "maxLength": 80,
             "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}$",
             "description": "Optional selected assistant for an ARTICLE publication summary. Omitted uses the first enabled assistant. Not used for withdrawal."
+          },
+          "metadataReviewed": {
+            "type": "boolean",
+            "default": false,
+            "description": "发布时为 true 表示已确认元数据，取消旧摘要任务且不创建发布后摘要；旧客户端默认行为不变。"
           }
         }
       },
@@ -4120,7 +4163,7 @@
           "title": {
             "type": "string",
             "maxLength": 255,
-            "description": "ARTICLE: first top-level Markdown heading overrides this field. Without a heading legacy separate titles are preserved; new studio asks for a heading."
+            "description": "默认从首个顶层 Markdown 标题提取；保存 publicationMetadata=true 时保留显式发布标题。"
           },
           "summary": {
             "type": "string",
@@ -4154,6 +4197,11 @@
                 "type": "null"
               }
             ]
+          },
+          "publicationMetadata": {
+            "type": "boolean",
+            "default": false,
+            "description": "保存时为 true 使用显式发布标题，不从正文覆盖；不修改正文或公开快照。"
           }
         },
         "description": "创建时各字段可省略；保存时 version 必填，未给字段将按服务端规则清空或保留。"
