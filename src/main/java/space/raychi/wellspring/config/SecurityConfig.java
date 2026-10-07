@@ -59,6 +59,12 @@ public class SecurityConfig {
             .httpBasic(basic -> basic.disable())
             .requestCache(cache -> cache.disable())
             .authorizeHttpRequests(auth -> auth
+                // Only continue an already-authorized SSE request. After logout the
+                // bridge sends stream-error and completes; re-authorizing that internal
+                // dispatch would throw against the committed response and reset TCP.
+                .requestMatchers(request -> request.getDispatcherType() == jakarta.servlet.DispatcherType.ASYNC
+                    && request.getServletPath().matches("/api/v1/admin/ai/turns/[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}/events"))
+                .permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/auth/csrf", "/api/v1/auth/session").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/public/**").permitAll()
