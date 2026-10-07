@@ -5,8 +5,8 @@
 ## 内容类型与地址
 
 - 新内容只有 `ARTICLE`（文章）和 `POST`（帖子），对应 `/writing/{slug}`、`/posts/{slug}`；旧文章 `slug` 不变。
-- 新建帖子时服务端生成稳定的 `post-{UUID}` slug，标题可空。文章标题必填，首次发布前须填写正式 slug。
-- 文章的 `category` 必须是现有分类；新建时省略或空值归入 `未分类`，保存时省略字段保留现有分类，显式传空字符串归入 `未分类`。帖子 `category` 必须为空。文章和帖子的 `tags` 可为多个已建立的标签。分类/标签由站长通过创建接口新增；本版不提供更名或删除。
+- 新建帖子时服务端生成稳定的随机 UUID slug，标题可空。文章标题必填，首次发布前须填写正式 slug。
+- 文章的 `category` 必须是现有分类；新建时省略或空值归入 `未分类`，保存时省略字段保留现有分类，显式传空字符串归入 `未分类`。帖子 `category` 必须为空。文章和帖子的 `tags` 可为多个已有或尚未建立的标签名称；缺失标签在成功发布事务内建立。分类由站长通过创建接口新增，标签管理接口仍可显式新增；本版不提供更名或删除。
 - 帖子的 Markdown 不得包含图片节点或 HTML `<img>`；封面与图片上传只属于文章。文章沿用 v0.1 的图片私密、快照引用和撤回规则。
 - 保存工作稿只更新管理版本与 `updatedAt`，不更新 `publishedAt`、公开快照和公开顺序。首次发布确定 `publishedAt`；再次发布更新 `publicUpdatedAt`，保持 `publishedAt` 与原位置。撤回后公开列表和详情返回 404/不包含，重发保留原地址与首次发布时间。
 
@@ -75,7 +75,7 @@ Flyway V2 在原 `articles` 表增加类型与分类字段，不改变原 ID、s
 
 ## 管理员修改密码
 
-`POST /api/v1/auth/password` 需要登录会话与 CSRF，JSON 为 `{currentPassword, newPassword}`。新密码至少 12 个 Unicode 字符，UTF-8 最多 72 字节，不能全为空白或与当前密码相同；不裁剪首尾空格。当前密码最多 72 字节。成功返回 204 空响应，当前会话立即注销，其他既有会话在下一次请求时按持久化凭据版本注销；旧会话读取 `/auth/session` 返回 `authenticated:false`，管理 GET 返回 401。已执行中的请求不会回滚。
+`POST /api/v1/auth/password` 需要登录会话与 CSRF，JSON 为 `{currentPassword, newPassword}`。新密码至少 12 个 Unicode 字符，UTF-8 最多 72 字节，不能全为空白或与当前密码相同；不裁剪首尾空格。当前密码最多 72 字节。成功返回 204 空响应，当前会话立即注销，其他既有会话在下一次请求时按持久化凭据版本注销；旧会话读取 `/auth/session` 返回 `authenticated:false`，管理 GET 返回 401。已执行中的请求不会回滚；写作 SSE 连接在每次任务读取前核验凭证版本，退出或改密后停止转发。
 
 错误采用统一格式：400 `CURRENT_PASSWORD_INVALID`（旧密码错误，保留当前会话）；400 `VALIDATION_FAILED`（长度/空值/相同密码）；401 `AUTH_REQUIRED`；403 `CSRF_INVALID`；409 `PASSWORD_CHANGED`（并发修改，要求重新登录）。确认密码仅由管理台校验，不传到服务端。
 

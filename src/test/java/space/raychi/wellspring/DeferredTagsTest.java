@@ -27,6 +27,12 @@ class DeferredTagsTest {
     @org.springframework.test.context.DynamicPropertySource
     static void credentials(org.springframework.test.context.DynamicPropertyRegistry registry) {
         registry.add("raychi.admin.password-hash", () -> new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("test-password"));
+        String mysql = System.getenv("RAYCHI_TEST_PUBLICATION_MYSQL_URL");
+        if (mysql != null && !mysql.isBlank()) {
+            registry.add("spring.datasource.url", () -> mysql);
+            registry.add("spring.datasource.username", () -> System.getenv("RAYCHI_TEST_MYSQL_USER"));
+            registry.add("spring.datasource.password", () -> System.getenv("RAYCHI_TEST_MYSQL_PASSWORD"));
+        }
     }
     @Autowired ArticleService contents;
     @Autowired TaxonomyService taxonomy;
