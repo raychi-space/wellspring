@@ -19,7 +19,7 @@ mvn spring-boot:run
 
 接口说明见[内容与站点契约 v0.2](docs/api/contract-v0.2.md)、[兼容的文章契约 v0.1](docs/api/contract-v0.1.md)与[图片授权规则](docs/api/assets-v0.1.md)。内容和图片的匿名可见性以当前发布快照为准；管理端通过同源会话 Cookie 与 CSRF 访问。上线时启用安全 Cookie，反向代理同源 `/api`，再单独评估部署资源与备份恢复。
 
-模块内部职责见[模块说明](docs/module.md)，v0.2 范围见[任务文档 PR #3](https://github.com/raychi-space/wellspring/pull/3)；Agent 长期约定见 [AGENTS.md](AGENTS.md)。跨仓任务按[项目流程](https://github.com/raychi-space/raychi/blob/main/docs/workflow.md)处理；实时状态看[Raychi Project](https://github.com/orgs/raychi-space/projects/1)及对应 Issue/PR。
+模块内部职责见[模块说明](docs/module.md)，早期 v0.2 范围见[产品范围文档](docs/product-scope-v0.2.md)；当前字段与行为以 `docs/api/` 契约为准，Agent 长期约定见 [AGENTS.md](AGENTS.md)。跨仓任务按[项目流程](https://github.com/raychi-space/raychi/blob/main/docs/workflow.md)处理；实时状态看[Raychi Project](https://github.com/orgs/raychi-space/projects/1)及对应 Issue/PR。
 
 ## 目录约束
 
@@ -45,7 +45,9 @@ mvn spring-boot:run
 
 ## 写作助手
 
-[Agent 接入 v1](docs/api/writing-agent-v1.md) 提供服务商/助手配置代理、站主写作任务和结构化建议。默认关闭；部署独立 agent-core 后填写 RAYCHI_AGENT_ENABLED/URL/TOKEN。浏览器通过本站会话和 CSRF 操作，密钥保存在内核加密存储，对话/改写建议不保存或发布文章。V7 增加发布后摘要任务：发布先成功，后台生成并安全保存摘要；模型失败不阻断发布。详见[内容契约](docs/api/contract-v0.2.md)。
+[Agent 接入 v1](docs/api/writing-agent-v1.md) 提供服务商/助手配置代理、站主写作任务和结构化建议。默认关闭；部署独立 agent-core 后填写 RAYCHI_AGENT_ENABLED/URL/TOKEN。浏览器通过本站会话和 CSRF 操作，密钥保存在内核加密存储，对话/改写建议不保存或发布文章。
+
+当前管理台先保存工作稿，再调用 metadata 任务生成并保存发布标题、摘要与地址别名；发布前由站主编辑确认，已发布地址保持不变。使用 `metadataReviewed=true` 发布不会再排队覆盖确认摘要。V7 的发布后摘要任务保留旧客户端兼容：旧发布先成功、后台生成摘要，模型失败不阻断该旧接口发布。停用 Agent 不删除内容和配置，但当前管理台的元数据准备需要可用助手。字段、版本与错误规则见[内容契约](docs/api/contract-v0.2.md)和[写作契约](docs/api/writing-agent-v1.md)。
 
 ## 分页与附件回收（2026-10-03）
 
