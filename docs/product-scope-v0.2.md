@@ -1,6 +1,6 @@
 # Raychi v0.2 · wellspring 内容服务任务说明
 
-状态：待契约设计与实现；[模块 Issue #2](https://github.com/raychi-space/wellspring/issues/2)，[跨仓主 Issue #1](https://github.com/raychi-space/raychi/issues/1)。项目级产品依据见 [Raychi 产品需求 v0.2](https://github.com/raychi-space/raychi/blob/main/docs/product-v0.2.md)；当前 API 与数据库只覆盖长文、身份和图片。本仓拥有新 HTTP 契约与数据迁移，不由前端文档决定具体字段或表结构。
+本文保留早期任务范围；对应[模块 Issue #2](https://github.com/raychi-space/wellspring/issues/2)及已完成的[跨仓主 Issue #1](https://github.com/raychi-space/raychi/issues/1)。项目级产品依据见 [Raychi 产品需求 v0.2](https://github.com/raychi-space/raychi/blob/main/docs/product-v0.2.md)。后续内容已收敛为文章和帖子，并增加搜索、写作助手、发布元数据及账号持久化；当前行为以[内容契约](api/contract-v0.2.md)、[写作契约](api/writing-agent-v1.md)和 [README](../README.md)为准。下文不是当前功能进度，本仓仍拥有 HTTP 契约与数据迁移。
 
 ## 业务语义
 

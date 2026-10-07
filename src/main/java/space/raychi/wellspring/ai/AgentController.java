@@ -12,10 +12,14 @@ import org.springframework.web.bind.annotation.*;
 public class AgentController {
   private final AgentClient client;
   private final WritingService writing;
+  private final WritingStreams streams;
+  private final space.raychi.wellspring.service.AdminAccountService accounts;
 
-  public AgentController(AgentClient client, WritingService writing) {
+  public AgentController(AgentClient client, WritingService writing, WritingStreams streams, space.raychi.wellspring.service.AdminAccountService accounts) {
     this.client = client;
     this.writing = writing;
+    this.streams = streams;
+    this.accounts = accounts;
   }
 
   @GetMapping("/providers")
@@ -59,6 +63,23 @@ public class AgentController {
   @ResponseStatus(HttpStatus.ACCEPTED)
   JsonNode turn(@RequestBody JsonNode body, Principal principal) {
     return writing.create(body, principal.getName());
+  }
+
+  @GetMapping(value = "/turns/{id}/events", produces = "text/event-stream")
+  org.springframework.web.servlet.mvc.method.annotation.SseEmitter events(@PathVariable String id, Principal principal, jakarta.servlet.http.HttpServletRequest request, jakarta.servlet.http.HttpServletResponse response) {
+    if (!(principal instanceof org.springframework.security.core.Authentication auth)
+        || !(auth.getPrincipal() instanceof space.raychi.wellspring.service.AdminPrincipal owner))
+      throw AgentClient.error(401, "AUTH_REQUIRED");
+    var initial = writing.get(id, principal.getName()); // Check task ownership before opening a stream.
+    var session = request.getSession(false);
+    response.setHeader("Cache-Control", "no-store, no-cache, no-transform");
+    response.setHeader("X-Accel-Buffering", "no");
+    return streams.open(() -> {
+      if (session == null) throw AgentClient.error(401, "AUTH_REQUIRED");
+      try { session.getCreationTime(); } catch (IllegalStateException ex) { throw AgentClient.error(401, "AUTH_REQUIRED"); }
+      if (!accounts.isCurrent(owner)) throw AgentClient.error(401, "AUTH_REQUIRED");
+      return writing.get(id, principal.getName());
+    }, initial);
   }
 
   @GetMapping("/turns/{id}")

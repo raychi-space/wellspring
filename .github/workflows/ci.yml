@@ -23,8 +23,10 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      - run: mysql -h 127.0.0.1 -uroot -pmigration-test-root -e 'CREATE DATABASE raychi_publication'
       - run: mvn -B test
         env:
           RAYCHI_TEST_MYSQL_URL: jdbc:mysql://127.0.0.1:3306/raychi_case_tags?connectionTimeZone=UTC
           RAYCHI_TEST_MYSQL_USER: root
           RAYCHI_TEST_MYSQL_PASSWORD: migration-test-root
+          RAYCHI_TEST_PUBLICATION_MYSQL_URL: jdbc:mysql://127.0.0.1:3306/raychi_publication?connectionTimeZone=UTC

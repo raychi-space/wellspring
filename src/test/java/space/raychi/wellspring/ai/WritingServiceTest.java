@@ -13,6 +13,34 @@ class WritingServiceTest {
   private final AgentClient client = mock(AgentClient.class);
   private final WritingService service = new WritingService(client, json);
 
+
+  @Test
+  void wholeDocumentProposalIsOptionalScopedAndStreamsOwnedText() throws Exception {
+    final String[] origin = {null};
+    when(client.request(eq("POST"), eq("/runs"), any(), any())).thenAnswer(call -> {
+      var run = (com.fasterxml.jackson.databind.JsonNode) call.getArgument(2);
+      origin[0] = run.path("origin").asText();
+      assertThat(run.path("resultRequired").asBoolean()).isFalse();
+      assertThat(run.path("snapshots").path("document").path("documentMarkdown").asText()).isEqualTo("未保存正文");
+      var collector = run.path("bindings").get(1);
+      assertThat(collector.path("name").asText()).isEqualTo("propose_document");
+      assertThat(collector.path("schema").path("properties").path("documentId").path("const").asText()).isEqualTo("snapshot-1");
+      return json.createObjectNode().put("id", "task-doc").put("status", "pending");
+    });
+    service.create(json.readTree("""
+      {"requestId":"doc","assistantId":"assistant","mode":"chat","message":"修改全文","history":[],"context":{"title":"","documentId":"snapshot-1","documentMarkdown":"未保存正文"}}
+      """), "owner");
+    var task = json.createObjectNode().put("origin", origin[0]).put("taskType", "configured_run").put("status", "running").put("partialReply", "正在修改");
+    when(client.request(eq("GET"), eq("/tasks/task-doc"), isNull(), isNull())).thenReturn(task);
+    assertThat(service.get("task-doc", "owner").path("partialReply").asText()).isEqualTo("正在修改");
+    assertThatThrownBy(() -> service.get("task-doc", "other")).isInstanceOf(ApiException.class);
+    task.put("status", "succeeded");
+    when(client.request(eq("GET"), eq("/tasks/task-doc/result"), isNull(), isNull())).thenReturn(json.readTree("""
+      {"result":{"reply":"完成","collected":{"documentId":"snapshot-1","newText":"修改全文"}}}
+      """));
+    assertThat(service.get("task-doc", "owner").path("result").path("proposal").path("kind").asText()).isEqualTo("document");
+  }
+
   @Test
   void metadataRequiresStructuredFieldsAndBuildsFiveWordSlug() throws Exception {
     final String[] origin = {null};
