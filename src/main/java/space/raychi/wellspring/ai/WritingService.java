@@ -62,7 +62,7 @@ public class WritingService {
     if (!Set.of("chat", "rewrite", "summarize", "metadata").contains(mode))
       throw AgentClient.error(422, "INVALID_INPUT");
     var context = request.path("context");
-    fields(context, "title", "selection", "documentMarkdown", "currentSummary");
+    fields(context, "title", "selection", "documentMarkdown", "currentSummary", "documentId");
     String title = string(context, "title", 200, true);
     var messages = json.createArrayNode();
     var history = request.path("history");
@@ -96,9 +96,9 @@ public class WritingService {
                         + " questions, discussion or advice, reply with text and do not propose"
                         + " edits. If proposing, use the exact selectionId. A proposal is never an"
                         + " applied change; the user must confirm it."
-                  : "Use this turn's read_document for context. Give text advice only; no edit"
-                        + " tools are granted. If asked to edit, ask the user to quote a valid"
-                        + " selection first.";
+                  : context.has("documentId")
+                      ? "Read the complete read_document snapshot. For questions, reply normally. When the user asks to edit or write, call propose_document with the supplied documentId and complete revised Markdown. Preserve unrelated content. The user must confirm before application. documentId=" + context.path("documentId").asText()
+                      : "Use this turn's read_document for context. Give text advice only; no edit tools are granted.";
         };
     messages
         .addObject()
@@ -119,6 +119,7 @@ public class WritingService {
                   "Read the current complete unsaved document snapshot.")
               .put("snapshotKey", "document"));
     }
+    String documentId = context.has("documentId") ? id(string(context, "documentId", 80, false)) : null;
     String selectionId = null;
     if (context.has("selection")) {
       var selection = context.get("selection");
@@ -137,7 +138,7 @@ public class WritingService {
     }
     if (mode.equals("rewrite") && selectionId == null)
       throw AgentClient.error(422, "INVALID_INPUT");
-    if (!mode.equals("chat") || selectionId != null) {
+    if (!mode.equals("chat") || selectionId != null || documentId != null) {
       var schema = json.createObjectNode().put("type", "object").put("additionalProperties", false);
       var properties = schema.putObject("properties");
       if (mode.equals("metadata")) {
@@ -145,6 +146,10 @@ public class WritingService {
         properties.putObject("summary").put("type", "string").put("minLength", 1).put("maxLength", 600);
         properties.putObject("englishTitle").put("type", "string").put("minLength", 1).put("maxLength", 300);
         schema.putArray("required").add("title").add("summary").add("englishTitle");
+      } else if (mode.equals("chat") && selectionId == null && documentId != null) {
+        properties.putObject("documentId").put("type", "string").put("const", documentId);
+        properties.putObject("newText").put("type", "string").put("maxLength", 100000);
+        schema.putArray("required").add("documentId").add("newText");
       } else if (!mode.equals("summarize")) {
         properties.putObject("selectionId").put("type", "string").put("const", selectionId);
         properties.putObject("newText").put("type", "string").put("maxLength", 20000);
@@ -159,7 +164,7 @@ public class WritingService {
       }
       var collector =
           binding(
-              mode.equals("metadata") ? "propose_metadata" : mode.equals("summarize") ? "propose_summary" : "propose_replacement",
+              mode.equals("metadata") ? "propose_metadata" : mode.equals("summarize") ? "propose_summary" : selectionId == null ? "propose_document" : "propose_replacement",
               "result.collect",
               "Submit one suggestion for user confirmation.");
       collector.set("schema", schema);
@@ -194,6 +199,7 @@ public class WritingService {
       throw AgentClient.error(404, "NOT_FOUND");
     var out =
         json.createObjectNode().put("turnId", taskId).put("status", task.path("status").asText());
+    if (task.has("partialReply")) out.put("partialReply", task.path("partialReply").asText());
     if (task.path("status").asText().equals("succeeded")) {
       var result = client.request("GET", "/tasks/" + taskId + "/result", null, null).path("result");
       var converted = out.putObject("result").put("reply", result.path("reply").asText());
@@ -203,6 +209,7 @@ public class WritingService {
           throw AgentClient.error(502, "AGENT_PROTOCOL_ERROR");
         if (proposal.has("selectionId") && proposal.has("newText"))
           object.put("kind", "replacement");
+        else if (proposal.has("documentId") && proposal.has("newText")) object.put("kind", "document");
         else if (proposal.has("englishTitle")) {
           String title = string(proposal, "title", 200, false);
           String summary = string(proposal, "summary", 600, false);
