@@ -77,6 +77,16 @@ public class AssetService {
         } catch (IOException ex) { throw notFound(); }
     }
 
+    /** Internal archive read; filesystem corruption cannot exceed the declared budget. */
+    public byte[] readForExport(String id, long expectedBytes) throws IOException {
+        var asset = assets.selectById(id).orElseThrow(AssetService::notFound);
+        try (var input = Files.newInputStream(root.resolve(asset.key()))) {
+            byte[] bytes = input.readNBytes(Math.toIntExact(expectedBytes) + 1);
+            if (bytes.length != expectedBytes) throw new IOException("Asset size mismatch");
+            return bytes;
+        }
+    }
+
     static String publicUrl(String id) { return "/api/v1/public/assets/" + id + "/content"; }
 
     private static ApiException notFound() {
