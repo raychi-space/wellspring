@@ -28,6 +28,8 @@ public final class ApiResponses {
         return ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON).body(error);
     }
 
+    public static ResponseEntity<Void> noContentNoStore() { return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build(); }
+
     public static ResponseEntity<Void> noContent() { return ResponseEntity.noContent().build(); }
 
     public static ResponseEntity<byte[]> binary(byte[] bytes, String mediaType, boolean head) {

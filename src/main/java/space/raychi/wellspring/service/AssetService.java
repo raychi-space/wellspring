@@ -38,8 +38,9 @@ public class AssetService {
 
     private record ImageMeta(String mediaType, int width, int height) {}
 
+    @org.springframework.transaction.annotation.Transactional
     public UploadedAsset upload(String articleId, MultipartFile file) {
-        ArticleEntity article = articles.selectById(articleId, false).orElseThrow(() ->
+        ArticleEntity article = articles.selectById(articleId, true).filter(value -> !value.status().equals("TRASHED")).orElseThrow(() ->
                 new ApiException(HttpStatus.NOT_FOUND, "ARTICLE_NOT_FOUND", "文章不存在。"));
         if (!article.type().equals("ARTICLE"))
             throw new ApiException(HttpStatus.BAD_REQUEST, "ASSET_INVALID", "帖子和思考不支持图片上传。");
@@ -60,6 +61,14 @@ public class AssetService {
             Files.write(temp, bytes);
             try { Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE); }
             catch (java.nio.file.AtomicMoveNotSupportedException ex) { Files.move(temp, target); }
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override public void afterCompletion(int status) {
+                        if (status != STATUS_COMMITTED) {
+                            try { Files.deleteIfExists(target); } catch (IOException ignored) {}
+                        }
+                    }
+                });
             assets.insert(new AssetEntity(id, articleId, key, meta.mediaType(), bytes.length, meta.width(), meta.height(), Instant.now()));
         } catch (Exception ex) {
             try { Files.deleteIfExists(temp); Files.deleteIfExists(target); } catch (IOException ignored) {}
