@@ -14,8 +14,10 @@ public class PublicationSummaryService {
     private final ArticleMapper articles;
     private final PublicationSummaryMapper jobs;
     private final SearchState search;
-    public PublicationSummaryService(ArticleMapper articles, PublicationSummaryMapper jobs, SearchState search) {
+    private final ContentHistoryService history;
+    public PublicationSummaryService(ArticleMapper articles, PublicationSummaryMapper jobs, SearchState search, ContentHistoryService history) {
         this.articles = articles; this.jobs = jobs; this.search = search;
+        this.history = history;
     }
 
     @Transactional
@@ -42,8 +44,10 @@ public class PublicationSummaryService {
         boolean draftMatches = Objects.equals(article.draftBody(), article.publicBody())
                 && Objects.equals(article.draftTitle(), article.publicTitle())
                 && Objects.equals(article.draftSummary(), article.publicSummary());
+        history.baseline(article);
         articles.applyPublicationSummary(article.id(), summary.strip(), draftMatches);
         jobs.finish(job.jobId(), "SUCCEEDED", null);
         search.capture(article.id(), false);
+        history.record(articles.selectById(article.id(), false).orElseThrow(), "SUMMARY");
     }
 }

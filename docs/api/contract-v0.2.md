@@ -92,3 +92,5 @@ V10 增加 MySQL `admin_account` 单管理员记录，存 BCrypt 哈希与递增
 公开文章的可选相关推荐是兼容只读扩展，见[相关文章 v1](related-articles-v1.md)，仅返回发布元数据，不改变内容保存或发布状态。
 
 管理员单篇内容离线包见 [内容导出v1](content-export-v1.md)，兼容只读扩展，不包含外部讨论或未保存编辑。
+
+管理员工作稿修订查看与恢复见 [修订历史v1](content-history-v1.md)，不自动公开历史工作稿。
