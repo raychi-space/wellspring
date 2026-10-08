@@ -51,6 +51,13 @@ public class AssetMapper {
                         rs.getTimestamp("created_at").toInstant()), id).stream().findFirst();
     }
 
+    public java.util.List<AssetEntity> selectForArticle(String articleId) {
+        return db.query("SELECT * FROM assets WHERE article_id=? ORDER BY id LIMIT 257", (rs, n) ->
+            new AssetEntity(rs.getString("id"), rs.getString("article_id"), rs.getString("storage_key"),
+                rs.getString("media_type"), rs.getLong("byte_size"), rs.getInt("width_px"), rs.getInt("height_px"),
+                rs.getTimestamp("created_at").toInstant()), articleId);
+    }
+
     public boolean isPublishedReference(String id, String articleId) {
         Integer count = db.queryForObject("""
             SELECT COUNT(*) FROM published_assets pa JOIN articles a ON a.id=pa.article_id
