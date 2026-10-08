@@ -87,12 +87,20 @@ class AnalyticsFlowTest {
     }
 
     @Test void excludesOwnerBotDntAndGpcBeforeQueueing() throws Exception {
-        int before = payloads.size();
-        mvc.perform(collect(event("/")).with(user("owner"))).andExpect(status().isNoContent());
-        mvc.perform(collect(event("/")).header("DNT", "1")).andExpect(status().isNoContent());
-        mvc.perform(collect(event("/")).header("Sec-GPC", "1")).andExpect(status().isNoContent());
-        mvc.perform(collect(event("/")).header("User-Agent", "Googlebot")).andExpect(status().isNoContent());
-        assertThat(payloads.size()).isEqualTo(before);
+        var excluded = java.util.List.of(event("/"), event("/"), event("/"), event("/"));
+        mvc.perform(collect(excluded.get(0)).with(user("owner"))).andExpect(status().isNoContent());
+        mvc.perform(collect(excluded.get(1)).header("DNT", "1")).andExpect(status().isNoContent());
+        mvc.perform(collect(excluded.get(2)).header("Sec-GPC", "1")).andExpect(status().isNoContent());
+        mvc.perform(collect(excluded.get(3)).header("User-Agent", "Googlebot")).andExpect(status().isNoContent());
+        // A delivered marker drains the single worker: other tests' queued
+        // events must not race an assertion against the global payload count.
+        String marker = event("/");
+        mvc.perform(collect(marker)).andExpect(status().isAccepted());
+        awaitEvent(json.readTree(marker).path("id").asText());
+        for (String body : excluded) {
+            String id = json.readTree(body).path("id").asText();
+            assertThat(payloads).noneMatch(payload -> payload.contains(id));
+        }
     }
 
     @Test void rejectsPrivateUnknownAndQueryPathsAndCallerFlags() throws Exception {
@@ -123,13 +131,25 @@ class AnalyticsFlowTest {
 
     @Test void limitsPerSessionAndValidatesReportWithoutLeakingUpstreamFields() throws Exception {
         MockHttpSession session = new MockHttpSession();
-        for (int i = 0; i < 60; i++) mvc.perform(collect(event("/")).session(session)).andExpect(status().isAccepted());
+        String last = null;
+        for (int i = 0; i < 60; i++) {
+            last = event("/");
+            mvc.perform(collect(last).session(session)).andExpect(status().isAccepted());
+        }
         mvc.perform(collect(event("/")).session(session)).andExpect(status().isTooManyRequests());
+        awaitEvent(json.readTree(last).path("id").asText());
         mvc.perform(get("/api/v1/admin/analytics/report?from=2026-10-01&to=2026-10-09").with(user("owner")))
                 .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.pageViews").value(2)).andExpect(jsonPath("$.token").doesNotExist())
                 .andExpect(jsonPath("$.retention.secret").doesNotExist());
         for (String query : new String[]{"from=x&to=2026-10-09", "from=2026-10-09&to=2026-10-01", "from=2025-01-01&to=2026-10-09", "from=2026-10-01&to=2026-10-09&ip=1.1.1.1", "from=2026-10-01&from=2026-10-02&to=2026-10-09"})
             mvc.perform(get("/api/v1/admin/analytics/report?" + query).with(user("owner"))).andExpect(status().isBadRequest());
+    }
+
+    private void awaitEvent(String id) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 5000;
+        while (payloads.stream().noneMatch(payload -> payload.contains(id)) && System.currentTimeMillis() < deadline)
+            Thread.sleep(10);
+        assertThat(payloads).anyMatch(payload -> payload.contains(id));
     }
 }
