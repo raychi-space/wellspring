@@ -53,8 +53,9 @@ public class ArticleService {
     private final space.raychi.wellspring.search.SearchState search;
     private final PublicationSummaryMapper summaryJobs;
     private final PublicationSummaryService summaries;
+    private final ContentHistoryService history;
 
-    public ArticleService(ArticleMapper articles, TaxonomyMapper taxonomy, AssetMapper assets, ObjectMapper json, space.raychi.wellspring.search.SearchState search, PublicationSummaryMapper summaryJobs, PublicationSummaryService summaries) {
+    public ArticleService(ArticleMapper articles, TaxonomyMapper taxonomy, AssetMapper assets, ObjectMapper json, space.raychi.wellspring.search.SearchState search, PublicationSummaryMapper summaryJobs, PublicationSummaryService summaries, ContentHistoryService history) {
         this.articles = articles;
         this.taxonomy = taxonomy;
         this.assets = assets;
@@ -62,6 +63,7 @@ public class ArticleService {
         this.search = search;
         this.summaryJobs = summaryJobs;
         this.summaries = summaries;
+        this.history = history;
     }
 
     private List<String> tags(String stored) {
@@ -195,6 +197,7 @@ public class ArticleService {
             articles.insertDraft(new ArticleDraftEntity(id, slug, kind, title, summary, markdown, tagData,
                     cover, selectedCategory, null, now));
         } catch (DuplicateKeyException ex) { throw slugConflict(); }
+        history.record(required(id, false), "CREATE");
         return getAdmin(id);
     }
 
@@ -264,6 +267,10 @@ public class ArticleService {
     }
 
     private AdminArticle save(ArticleEntity current, ArticleInput input) {
+        return save(current, input, "SAVE");
+    }
+
+    private AdminArticle save(ArticleEntity current, ArticleInput input, String operation) {
         String id = current.id();
         if (input == null || input.version() == null || current.version() != input.version()) throw conflict();
         String slug = current.type().equals("ARTICLE") && input.slug() != null ? input.slug().trim() : current.slug();
@@ -280,11 +287,24 @@ public class ArticleService {
         noImages(effectiveType, markdown, input.coverUrl());
         String selectedCategory = category(effectiveType, input.category() == null
                 ? displayCategory(current.type(), current.draftCategory()) : input.category());
+        history.baseline(current);
         try {
             articles.updateDraft(new ArticleDraftEntity(id, slug, effectiveType, title, summary, markdown, tagData,
                     input.coverUrl(), selectedCategory, displayCategory(current.type(), current.publicCategory()), Instant.now()));
         } catch (DuplicateKeyException ex) { throw slugConflict(); }
+        history.record(required(id, false), operation);
         return getAdmin(id);
+    }
+
+    @Transactional
+    public AdminArticle restoreRevision(String id, String revisionId, VersionInput input) {
+        if (input == null || input.expectedVersion() == null || input.expectedVersion() < 0)
+            throw bad("请提供当前工作稿版本。");
+        var current = required(id, true);
+        checkVersion(input, current);
+        var snapshot = history.get(id, revisionId).snapshot();
+        return save(current, new ArticleInput(current.version(), current.slug(), snapshot.title(), snapshot.summary(),
+            snapshot.bodyMarkdown(), snapshot.tags(), snapshot.coverUrl(), snapshot.category(), true), "RESTORE");
     }
 
     @Transactional
@@ -306,6 +326,7 @@ public class ArticleService {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "ASSET_REFERENCE_INVALID", "正文引用的图片无效。");
         }
         Instant now = Instant.now();
+        history.baseline(current);
         // Catalog creation and publication share this transaction, including downstream failures.
         for (String name : tags(current.draftTags()).stream().sorted().toList()) {
             if (!taxonomy.exists(Kind.TAG, name)) {
@@ -319,6 +340,7 @@ public class ArticleService {
         search.capture(id, false);
         if (Boolean.TRUE.equals(input.metadataReviewed())) summaryJobs.cancel(id);
         else summaries.enqueue(id, input.assistantId());
+        history.record(required(id, false), "PUBLISH");
         return getAdmin(id);
     }
 
@@ -331,9 +353,11 @@ public class ArticleService {
         String id = current.id();
         checkVersion(input, current);
         if (!current.status().equals("PUBLISHED")) throw bad("文章尚未发布。");
+        history.baseline(current);
         articles.unpublish(id, Instant.now());
         summaryJobs.cancel(id);
         search.capture(id, false);
+        history.record(required(id, false), "UNPUBLISH");
         return getAdmin(id);
     }
 
