@@ -3084,6 +3084,203 @@
           }
         ]
       }
+    },
+    "/public/analytics/events": {
+      "post": {
+        "summary": "Anonymous same-origin CSRF protected best-effort collection; analytics-v1.md",
+        "security": [
+          {
+            "csrfToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyticsEvent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Queued or dropped; not a durability acknowledgement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "queued",
+                        "dropped"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Disabled or excluded"
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF or origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/analytics/status": {
+      "get": {
+        "summary": "Current process collector status; ADMIN",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Administrator session required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/analytics/report": {
+      "get": {
+        "summary": "UTC aggregate report; ADMIN; analytics-v1.md",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Administrator session required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Analytics disabled/unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4888,6 +5085,219 @@
             "description": "至少 12 个 Unicode 字符且 UTF-8 最多 72 字节，不得为空白或与旧密码相同；不去除首尾空格"
           }
         }
+      },
+      "AnalyticsEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "path",
+          "occurredAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "path": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "visitorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 253
+          }
+        }
+      },
+      "AnalyticsStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "enabled",
+          "queued",
+          "delivered",
+          "dropped"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "queued": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "delivered": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dropped": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "AnalyticsReport": {
+        "type": "object",
+        "properties": {
+          "appId": {
+            "type": "string",
+            "maxLength": 80,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*$"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "pageViews": {
+            "type": "integer"
+          },
+          "unidentifiedPageViews": {
+            "type": "integer"
+          },
+          "visitorDays": {
+            "type": "integer"
+          },
+          "visits": {
+            "type": "integer"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "pageViews": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "name",
+                "pageViews"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "regions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "pageViews": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "name",
+                "pageViews"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "popularPaths": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "pageViews": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "name",
+                "pageViews"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "trend": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "day": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "pageViews": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "day",
+                "pageViews"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "retention": {
+            "type": "object",
+            "properties": {
+              "rawDays": {
+                "type": "integer"
+              },
+              "aggregateDays": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "rawDays",
+              "aggregateDays"
+            ],
+            "additionalProperties": false
+          },
+          "definitions": {
+            "type": "object",
+            "properties": {
+              "visitors": {
+                "type": "string"
+              },
+              "visits": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "visitors",
+              "visits"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "appId",
+          "from",
+          "to",
+          "pageViews",
+          "unidentifiedPageViews",
+          "visitorDays",
+          "visits",
+          "sources",
+          "regions",
+          "popularPaths",
+          "trend",
+          "retention",
+          "definitions"
+        ],
+        "additionalProperties": false
       }
     },
     "headers": {
