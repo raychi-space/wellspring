@@ -27,10 +27,13 @@ import space.raychi.wellspring.service.ArticleService;
 @Service
 public class AnalyticsService {
     public static final class SessionBudget {
+        private final java.util.function.LongSupplier millis;
+        public SessionBudget() { this(System::currentTimeMillis); }
+        public SessionBudget(java.util.function.LongSupplier millis) { this.millis = java.util.Objects.requireNonNull(millis); }
         private long minute = -1;
         private int count;
         synchronized boolean accept() {
-            long now = System.currentTimeMillis() / 60_000;
+            long now = millis.getAsLong() / 60_000;
             if (minute != now) { minute = now; count = 0; }
             return ++count <= 60;
         }
