@@ -36,6 +36,7 @@ class PublicationSummaryTest {
     @Autowired PublicationSummaryService summaries;
     @Autowired JdbcTemplate db;
     @Autowired ObjectMapper json;
+    @Autowired space.raychi.wellspring.service.ContentHistoryService history;
     @MockitoBean WritingService writing;
     @MockitoBean AgentClient client;
 
@@ -85,6 +86,10 @@ class PublicationSummaryTest {
         assertThat(complete.summary()).isEqualTo("发布版摘要");
         assertThat(complete.version()).isEqualTo(published.version() + 1);
         assertThat(complete.hasUnpublishedChanges()).isFalse();
+        var revision = history.list(complete.id(), 1, 20).items().getFirst();
+        assertThat(revision.operation()).isEqualTo("SUMMARY");
+        assertThat(revision.articleVersion()).isEqualTo(complete.version());
+        assertThat(history.get(complete.id(), revision.id()).snapshot().summary()).isEqualTo("发布版摘要");
         assertThat(articles.getPublic(complete.slug()).summary()).isEqualTo("发布版摘要");
         assertThat(db.queryForObject("SELECT version FROM search_sync_state WHERE document_id=?", Long.class, "content:" + complete.id())).isEqualTo(2);
         worker.poll(); verify(writing, times(1)).create(any(), anyString());
@@ -107,6 +112,9 @@ class PublicationSummaryTest {
         worker.poll();
         assertThat(articles.getAdmin(saved.id()).summary()).isEqualTo("私人摘要");
         assertThat(articles.getAdmin(saved.id()).bodyMarkdown()).isEqualTo("# 私人正文");
+        var revision = history.list(saved.id(), 1, 20).items().getFirst();
+        assertThat(revision.operation()).isEqualTo("SUMMARY");
+        assertThat(history.get(saved.id(), revision.id()).snapshot().summary()).isEqualTo("私人摘要");
         assertThat(articles.getPublic(saved.slug()).summary()).isEqualTo("发布版摘要");
     }
 
@@ -130,6 +138,7 @@ class PublicationSummaryTest {
         worker.poll();
         assertThat(articles.getAdmin(published.id()).summaryStatus()).isEqualTo("FAILED");
         assertThat(articles.getPublic(published.slug()).summary()).isEqualTo("原摘要");
+        assertThat(history.list(published.id(), 1, 20).items()).noneMatch(item -> item.operation().equals("SUMMARY"));
         var next = publish("# 超时"); worker.poll();
         when(writing.get(anyString(), anyString())).thenReturn(json.readTree("{\"status\":\"running\"}"));
         db.update("UPDATE publication_summaries SET started_at=? WHERE article_id=?", Timestamp.from(Instant.now().minusSeconds(160)), next.id());
