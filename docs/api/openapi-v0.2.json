@@ -3,7 +3,7 @@
   "info": {
     "title": "Raychi content and site API",
     "version": "0.3.0",
-    "description": "v0.2 extends v0.1 without removing legacy article endpoints. Search v1 extensions: docs/api/search-v1.md. Writing assistant v1: docs/api/writing-agent-v1.md. Site analytics v1: docs/api/analytics-v1.md."
+    "description": "v0.2 extends v0.1 without removing legacy article endpoints. Search v1 extensions: docs/api/search-v1.md. Writing assistant v1: docs/api/writing-agent-v1.md. Site analytics v1: docs/api/analytics-v1.md. Related articles v1: docs/api/related-articles-v1.md."
   },
   "servers": [
     {
@@ -3281,6 +3281,70 @@
           }
         }
       }
+    },
+    "/public/contents/ARTICLE/{slug}/related": {
+      "get": {
+        "operationId": "getRelatedArticles",
+        "summary": "PUBLIC; related published article metadata; no model calls",
+        "security": [],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 6,
+              "default": 3
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ranked related article metadata; excludes current article and private content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "maxItems": 6,
+                  "items": {
+                    "$ref": "#/components/schemas/RelatedArticle"
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4739,7 +4803,7 @@
               "string",
               "null"
             ],
-            "description": "列表为 null，详情为 Markdown 正文"
+            "description": "Published Markdown body in content lists and detail; legacy /public/articles lists use PublicArticle with null body."
           },
           "tags": {
             "type": "array",
@@ -5304,6 +5368,43 @@
           "definitions"
         ],
         "additionalProperties": false
+      },
+      "RelatedArticle": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "summary",
+          "category",
+          "publishedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       }
     },
     "headers": {
