@@ -11,3 +11,5 @@ Spring Boot 启动类在根包 `space.raychi.wellspring`。HTTP 控制器放在 
 本仓是 `/api/v1` 契约所有者。当前文章、帖子与配置的请求/响应见 [OpenAPI v0.2](api/openapi-v0.2.json)及[语义契约](api/contract-v0.2.md)，旧思考兼容为帖子；旧文章接口见 [v0.1](api/contract-v0.1.md)，图片权限见[图片契约](api/assets-v0.1.md)，搜索和写作分别见[搜索契约](api/search-v1.md)与[写作契约](api/writing-agent-v1.md)。搜索经 SearchService/Mapper 校验公开可见性，写作由 wellspring 组装业务工具与任务来源约束，独立内核各自拥有契约和状态。`lantern` 只用公开接口；`inkwell` 用管理接口和会话/CSRF。新增或修改端点时同步 schema、样例、错误/权限测试与兼容顺序，通知消费方评审。数据库和附件目录需一起备份，前端不得共享本仓数据库或 ORM 对象。
 
 `mvn test` 是当前仓库 CI 命令，`mvn package` 构建应用；`PublishingFlowTest` 和 `ContentFlowTest` 用 H2 覆盖图片权限、内容类型、筛选、配置与版本冲突；`SiteSettingsConcurrencyTest` 验证配置并发；`ApiContractTest` 用 MockMvc 验证 HTTP 结构、错误、图片 GET/HEAD 和登录登出。MySQL/真实 HTTP 的跨仓验收需另记录环境、请求、实际结果和各仓提交，不能由 H2 单测替代。流程见[项目文档](https://github.com/raychi-space/raychi/blob/main/docs/workflow.md)。
+
+访问统计接入见 [wellspring 统计契约](https://github.com/raychi-space/wellspring/blob/main/docs/api/analytics-v1.md)。采集服务和聚合状态归独立 waymarks；应用不访问其 SQLite，浏览器不接收服务 token。

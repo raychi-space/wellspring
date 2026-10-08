@@ -3,7 +3,7 @@
   "info": {
     "title": "Raychi content and site API",
     "version": "0.3.0",
-    "description": "v0.2 extends v0.1 without removing legacy article endpoints. Search v1 extensions: docs/api/search-v1.md. Writing assistant v1: docs/api/writing-agent-v1.md."
+    "description": "v0.2 extends v0.1 without removing legacy article endpoints. Search v1 extensions: docs/api/search-v1.md. Writing assistant v1: docs/api/writing-agent-v1.md. Site analytics v1: docs/api/analytics-v1.md."
   },
   "servers": [
     {
@@ -3289,6 +3289,12 @@
         "type": "apiKey",
         "in": "cookie",
         "name": "RAYCHI_SESSION"
+      },
+      "csrfToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-CSRF-TOKEN",
+        "description": "Token from GET /auth/csrf plus its same-origin session cookie; not administrator authentication"
       }
     },
     "parameters": {

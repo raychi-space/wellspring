@@ -21,6 +21,12 @@ spring:
   jackson:
     time-zone: UTC
 raychi:
+  analytics:
+    enabled: ${RAYCHI_ANALYTICS_ENABLED:false}
+    url: ${RAYCHI_ANALYTICS_URL:http://127.0.0.1:8093}
+    app: ${RAYCHI_ANALYTICS_APP:raychi-public}
+    token: ${RAYCHI_ANALYTICS_TOKEN:}
+    origin: ${RAYCHI_ANALYTICS_ORIGIN:http://127.0.0.1:3000}
   agent:
     enabled: ${RAYCHI_AGENT_ENABLED:false}
     url: ${RAYCHI_AGENT_URL:http://127.0.0.1:8092}
