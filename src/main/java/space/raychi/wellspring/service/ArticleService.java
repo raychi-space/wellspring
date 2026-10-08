@@ -385,7 +385,7 @@ public class ArticleService {
     }
 
     private ArticleEntity required(String id, boolean lock) {
-        return articles.selectById(id, lock).orElseThrow(ArticleService::notFound);
+        return articles.selectById(id, lock).filter(row -> !row.status().equals("TRASHED")).orElseThrow(ArticleService::notFound);
     }
 
     private static ApiException notFound() {

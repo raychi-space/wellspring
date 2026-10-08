@@ -35,7 +35,7 @@ public class ContentExportService {
     @Transactional(isolation = Isolation.REPEATABLE_READ)
     public ContentDownload export(String id, long expectedVersion) {
         if (expectedVersion < 0) throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "版本无效。");
-        var row = articles.selectById(id, true).orElseThrow(() ->
+        var row = articles.selectById(id, true).filter(value -> !value.status().equals("TRASHED")).orElseThrow(() ->
             new ApiException(HttpStatus.NOT_FOUND, "ARTICLE_NOT_FOUND", "内容不存在。"));
         if (row.version() != expectedVersion)
             throw new ApiException(HttpStatus.CONFLICT, "VERSION_CONFLICT", "内容已改变，请重新加载后导出。");
