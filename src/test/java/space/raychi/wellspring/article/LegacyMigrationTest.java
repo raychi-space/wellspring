@@ -68,7 +68,14 @@ class LegacyMigrationTest {
         db.update("UPDATE articles SET draft_tags=?, public_tags=? WHERE id=?", "[\"Tech\",\"tech\"]", "[\"Tech\",\"tech\"]", id);
         // Current services require all current migrations; upgrade only after exercising V4 repair.
         Flyway.configure().dataSource(source).locations("classpath:db/migration").load().migrate();
-        ArticleService articles = new ArticleService(new ArticleMapper(db), new TaxonomyMapper(db), new AssetMapper(db), new ObjectMapper(), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper()), new space.raychi.wellspring.mapper.PublicationSummaryMapper(db), new space.raychi.wellspring.service.PublicationSummaryService(new ArticleMapper(db), new space.raychi.wellspring.mapper.PublicationSummaryMapper(db), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper())));
+        var mapper = new ArticleMapper(db);
+        var history = new space.raychi.wellspring.service.ContentHistoryService(mapper,
+                new space.raychi.wellspring.mapper.ContentRevisionMapper(db), new ObjectMapper());
+        var search = new space.raychi.wellspring.search.SearchState(db, new ObjectMapper());
+        var jobs = new space.raychi.wellspring.mapper.PublicationSummaryMapper(db);
+        ArticleService articles = new ArticleService(mapper, new TaxonomyMapper(db), new AssetMapper(db),
+                new ObjectMapper(), search, jobs,
+                new space.raychi.wellspring.service.PublicationSummaryService(mapper, jobs, search, history), history);
         var old = articles.getAdmin(id);
         assertThat(old.tags()).containsExactly("Tech", "tech");
         var saved = articles.save(id, new ArticleInput(old.version(), old.slug(), old.title(),
@@ -116,7 +123,14 @@ class LegacyMigrationTest {
         assertThat(db.queryForList("SELECT name FROM tags ORDER BY name", String.class))
                 .containsExactlyInAnyOrder("旧标签", "公开旧标签");
         Flyway.configure().dataSource(url, "sa", "").locations("classpath:db/migration").load().migrate();
-        ArticleService articles = new ArticleService(new ArticleMapper(db), new TaxonomyMapper(db), new AssetMapper(db), new ObjectMapper(), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper()), new space.raychi.wellspring.mapper.PublicationSummaryMapper(db), new space.raychi.wellspring.service.PublicationSummaryService(new ArticleMapper(db), new space.raychi.wellspring.mapper.PublicationSummaryMapper(db), new space.raychi.wellspring.search.SearchState(db, new ObjectMapper())));
+        var mapper = new ArticleMapper(db);
+        var history = new space.raychi.wellspring.service.ContentHistoryService(mapper,
+                new space.raychi.wellspring.mapper.ContentRevisionMapper(db), new ObjectMapper());
+        var search = new space.raychi.wellspring.search.SearchState(db, new ObjectMapper());
+        var jobs = new space.raychi.wellspring.mapper.PublicationSummaryMapper(db);
+        ArticleService articles = new ArticleService(mapper, new TaxonomyMapper(db), new AssetMapper(db),
+                new ObjectMapper(), search, jobs,
+                new space.raychi.wellspring.service.PublicationSummaryService(mapper, jobs, search, history), history);
         var old = articles.getAdmin(id);
         assertThat(old.tags()).containsExactly("旧标签");
         var cleared = articles.save(id, new ArticleInput(old.version(), old.slug(), old.title(),
