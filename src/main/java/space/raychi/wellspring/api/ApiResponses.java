@@ -12,6 +12,10 @@ public final class ApiResponses {
 
     public static <T> ResponseEntity<T> ok(T data) { return ResponseEntity.ok(data); }
 
+    public static <T> ResponseEntity<T> okNoStore(T data) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(data);
+    }
+
     public static <T> ResponseEntity<T> created(String location, T data) {
         return ResponseEntity.created(URI.create(location)).body(data);
     }
