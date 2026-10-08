@@ -131,6 +131,9 @@ class AnalyticsFlowTest {
 
     @Test void limitsPerSessionAndValidatesReportWithoutLeakingUpstreamFields() throws Exception {
         MockHttpSession session = new MockHttpSession();
+        // All 61 requests must share a fixed minute; crossing a real wall-clock
+        // boundary legitimately resets the production quota.
+        session.setAttribute("analytics.budget", new space.raychi.wellspring.analytics.AnalyticsService.SessionBudget(() -> 60_000L));
         String last = null;
         for (int i = 0; i < 60; i++) {
             last = event("/");
