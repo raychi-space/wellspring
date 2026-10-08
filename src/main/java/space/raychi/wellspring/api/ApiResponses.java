@@ -36,4 +36,11 @@ public final class ApiResponses {
                 .contentType(MediaType.parseMediaType(mediaType)).contentLength(bytes.length)
                 .body(head ? null : bytes);
     }
+
+    public static ResponseEntity<byte[]> download(byte[] bytes, String filename) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+            .header("X-Content-Type-Options", "nosniff")
+            .header("Content-Disposition", "attachment; filename=\"" + filename + "\"")
+            .contentType(MediaType.parseMediaType("application/zip")).contentLength(bytes.length).body(bytes);
+    }
 }
