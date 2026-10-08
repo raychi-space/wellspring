@@ -25,7 +25,7 @@ public class ArticleMapper {
     private record Filter(String where, List<Object> args) {}
 
     private static Filter adminFilter(String status, String type) {
-        String where = " WHERE 1=1" + typeClause(type) +
+        String where = " WHERE status<>'TRASHED'" + typeClause(type) +
                 (status == null || status.isBlank() ? "" : " AND status=?");
         List<Object> args = new ArrayList<>();
         if (type != null && !type.equals("POST")) args.add(type);
@@ -147,6 +147,34 @@ public class ArticleMapper {
         db.update("UPDATE articles SET public_summary=?,draft_summary=CASE WHEN ? THEN ? ELSE draft_summary END,version=version+1 WHERE id=?",
                 summary, draftMatches, summary, id);
     }
+    public void trash(String id, Instant now) {
+        db.update("UPDATE articles SET status='TRASHED',trashed_at=?,updated_at=?,version=version+1 WHERE id=?",
+            Timestamp.from(now), Timestamp.from(now), id);
+    }
+    public void recover(String id, Instant now) {
+        db.update("UPDATE articles SET status='DRAFT',trashed_at=NULL,updated_at=?,version=version+1 WHERE id=?",
+            Timestamp.from(now), id);
+    }
+    public long countTrash() {
+        return db.queryForObject("SELECT COUNT(*) FROM articles WHERE status='TRASHED'", Long.class);
+    }
+    public List<space.raychi.wellspring.entity.TrashItemEntity> selectTrash(int limit, int offset) {
+        return db.query("""
+            SELECT id,slug,content_type,draft_title,version,trashed_at,updated_at FROM articles
+            WHERE status='TRASHED' ORDER BY trashed_at DESC,id DESC LIMIT ? OFFSET ?
+            """, (rs, n) -> new space.raychi.wellspring.entity.TrashItemEntity(rs.getString("id"), rs.getString("slug"),
+                rs.getString("content_type"), rs.getString("draft_title"), rs.getLong("version"),
+                instant(rs, "trashed_at"), instant(rs, "updated_at")), limit, offset);
+    }
+    public Optional<space.raychi.wellspring.entity.TrashItemEntity> selectTrashItem(String id) {
+        return db.query("""
+            SELECT id,slug,content_type,draft_title,version,trashed_at,updated_at FROM articles
+            WHERE status='TRASHED' AND id=?
+            """, (rs, n) -> new space.raychi.wellspring.entity.TrashItemEntity(rs.getString("id"), rs.getString("slug"),
+                rs.getString("content_type"), rs.getString("draft_title"), rs.getLong("version"),
+                instant(rs, "trashed_at"), instant(rs, "updated_at")), id).stream().findFirst();
+    }
+
     public void delete(String id) {
         db.update("DELETE FROM articles WHERE id=?", id);
     }

@@ -57,7 +57,7 @@ public class ContentHistoryService {
         } catch (Exception ex) { throw new IllegalStateException("Invalid revision snapshot", ex); }
     }
     private void require(String id) {
-        if (articles.selectById(id, false).isEmpty())
+        if (articles.selectById(id, false).filter(row -> !row.status().equals("TRASHED")).isEmpty())
             throw new ApiException(HttpStatus.NOT_FOUND, "ARTICLE_NOT_FOUND", "内容不存在。");
     }
 }
