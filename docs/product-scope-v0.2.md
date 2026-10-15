@@ -22,3 +22,5 @@
 - 公开混合列表和回顾只返回已发布快照，顺序及筛选稳定；无标题内容详情可访问；撤回后匿名读取不可见。
 - 站点配置管理写入需认证与 CSRF，公开读取仅包含可公开字段；保存成功后立即可读。
 - 运行 `mvn test`，并用真实 MySQL 与 HTTP 记录集成结果；H2 测试不能代替跨仓验收。
+
+> 2026-10-15 导航：当前产品基线见[现行产品](https://github.com/raychi-space/raychi/blob/main/docs/product-specs/current-behavior.md)；本文件保留原任务范围和验收要求，未实现但已确认的约束由后续设计/Issue 核实，不自动取消。
