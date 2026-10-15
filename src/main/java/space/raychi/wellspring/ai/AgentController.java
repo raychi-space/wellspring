@@ -54,6 +54,17 @@ public class AgentController {
     return client.request("POST", "/assistants", body, null);
   }
 
+  @GetMapping("/assistant-templates")
+  JsonNode assistantTemplates() {
+    return client.request("GET", "/assistant-templates", null, null);
+  }
+
+  @PostMapping("/assistant-templates/{id}/instantiate")
+  @ResponseStatus(HttpStatus.CREATED)
+  JsonNode instantiateAssistant(@PathVariable String id, @RequestBody JsonNode body) {
+    return client.request("POST", "/assistant-templates/" + WritingService.id(id) + "/instantiate", body, null);
+  }
+
   @PatchMapping("/assistants/{id}")
   JsonNode assistant(@PathVariable String id, @RequestBody JsonNode body) {
     return client.request("PATCH", "/assistants/" + WritingService.id(id), body, null);

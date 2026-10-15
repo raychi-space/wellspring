@@ -3,7 +3,7 @@
   "info": {
     "title": "Raychi content and site API",
     "version": "0.3.0",
-    "description": "v0.2 extends v0.1 without removing legacy article endpoints. Search v1 extensions: docs/api/search-v1.md. Writing assistant v1: docs/api/writing-agent-v1.md. Site analytics v1: docs/api/analytics-v1.md. Related articles v1: docs/api/related-articles-v1.md."
+    "description": "v0.2 extends v0.1 without removing legacy article endpoints. Search v1 extensions: docs/api/search-v1.md. Writing assistant v1: docs/api/writing-agent-v1.md. Site analytics v1: docs/api/analytics-v1.md. Related articles v1: docs/api/related-articles-v1.md. Reading shelf v1: docs/api/reading-v1.md."
   },
   "servers": [
     {
@@ -657,6 +657,36 @@
               }
             }
           }
+        }
+      }
+    },
+    "/admin/ai/assistant-templates": {
+      "get": {
+        "operationId": "listAIAssistantTemplates",
+        "security": [{ "sessionCookie": [] }],
+        "responses": {
+          "200": { "description": "Safe template metadata", "content": { "application/json": { "schema": { "type": "object", "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/AIAssistantTemplate" } } }, "required": ["items"], "additionalProperties": false } } } },
+          "401": { "$ref": "#/components/responses/Error" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/admin/ai/assistant-templates/{id}/instantiate": {
+      "post": {
+        "operationId": "instantiateAIAssistantTemplate",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "maxLength": 80 } },
+          { "$ref": "#/components/parameters/CsrfHeader" }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AIAssistantTemplateInstantiation" } } } },
+        "responses": {
+          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AIAssistant" } } } },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" },
+          "default": { "$ref": "#/components/responses/Error" }
         }
       }
     },
@@ -2563,6 +2593,104 @@
           "default": {
             "$ref": "#/components/responses/Error"
           }
+        }
+      }
+    },
+    "/public/reading": {
+      "get": {
+        "operationId": "getPublicReadingShelf",
+        "responses": {
+          "200": { "description": "Enabled sources and recent article links", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReadingPublicShelf" } } }, "headers": { "X-Request-Id": { "$ref": "#/components/headers/RequestId" } } },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/admin/reading": {
+      "get": {
+        "operationId": "getAdminReadingShelf",
+        "security": [{ "sessionCookie": [] }],
+        "responses": {
+          "200": { "description": "Reading settings and source status", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReadingAdminShelf" } } } },
+          "401": { "$ref": "#/components/responses/Error" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/admin/reading/settings": {
+      "put": {
+        "operationId": "saveReadingSettings",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfHeader" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReadingSettingsInput" } } } },
+        "responses": {
+          "200": { "description": "Saved", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReadingSettings" } } } },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "409": { "$ref": "#/components/responses/Error" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/admin/reading/sources": {
+      "post": {
+        "operationId": "createReadingSource",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfHeader" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReadingSourceInput" } } } },
+        "responses": {
+          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReadingAdminSource" } } } },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/admin/reading/sources/{id}": {
+      "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "maxLength": 80 } }],
+      "put": {
+        "operationId": "updateReadingSource",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfHeader" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReadingSourceInput" } } } },
+        "responses": {
+          "200": { "description": "Saved", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReadingAdminSource" } } } },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "delete": {
+        "operationId": "deleteReadingSource",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfHeader" }],
+        "responses": {
+          "204": { "description": "Deleted" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/admin/reading/sources/{id}/sync": {
+      "post": {
+        "operationId": "syncReadingSource",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "maxLength": 80 } },
+          { "$ref": "#/components/parameters/CsrfHeader" }
+        ],
+        "responses": {
+          "200": { "description": "Checked", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReadingAdminSource" } } } },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "502": { "$ref": "#/components/responses/Error" },
+          "default": { "$ref": "#/components/responses/Error" }
         }
       }
     },
@@ -5911,6 +6039,117 @@
               "$ref": "#/components/schemas/HomepageSection"
             }
           }
+        }
+      },
+      "AIAssistantTemplate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "description", "icon"],
+        "properties": {
+          "id": { "type": "string", "maxLength": 80 },
+          "name": { "type": "string", "maxLength": 200 },
+          "description": { "type": "string", "maxLength": 500 },
+          "icon": { "type": "string", "maxLength": 64 }
+        }
+      },
+      "AIAssistantTemplateInstantiation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["providerId", "model"],
+        "properties": {
+          "providerId": { "type": "string", "maxLength": 80 },
+          "model": { "type": "string", "maxLength": 200 }
+        }
+      },
+      "ReadingPublicArticle": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "url", "originalTitle", "publishedAt", "illustrationSeed"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "url": { "type": "string", "format": "uri" },
+          "originalTitle": { "type": "string", "maxLength": 500 },
+          "translatedTitle": { "anyOf": [{ "type": "string", "maxLength": 500 }, { "type": "null" }] },
+          "publishedAt": { "type": "string", "format": "date-time" },
+          "illustrationSeed": { "type": "string", "minLength": 16, "maxLength": 16 }
+        }
+      },
+      "ReadingPublicSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "description", "siteUrl", "articles"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "siteUrl": { "type": "string", "format": "uri" },
+          "articles": { "type": "array", "items": { "$ref": "#/components/schemas/ReadingPublicArticle" } }
+        }
+      },
+      "ReadingPublicShelf": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["displayDays", "sources"],
+        "properties": {
+          "displayDays": { "type": "integer", "const": 90 },
+          "sources": { "type": "array", "items": { "$ref": "#/components/schemas/ReadingPublicSource" } }
+        }
+      },
+      "ReadingSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["version", "displayDays", "translationAssistantId"],
+        "properties": {
+          "version": { "type": "integer", "format": "int64", "minimum": 0 },
+          "displayDays": { "type": "integer", "const": 90 },
+          "translationAssistantId": { "anyOf": [{ "type": "string", "maxLength": 80 }, { "type": "null" }] }
+        }
+      },
+      "ReadingSettingsInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["version", "translationAssistantId"],
+        "properties": {
+          "version": { "type": "integer", "format": "int64", "minimum": 0 },
+          "translationAssistantId": { "anyOf": [{ "type": "string", "maxLength": 80 }, { "type": "null" }] }
+        }
+      },
+      "ReadingSourceInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "description", "siteUrl", "listingUrl", "adapter", "enabled", "position"],
+        "properties": {
+          "name": { "type": "string", "maxLength": 120 },
+          "description": { "type": "string", "maxLength": 240 },
+          "siteUrl": { "type": "string", "format": "uri", "maxLength": 1000 },
+          "listingUrl": { "type": "string", "format": "uri", "maxLength": 1000 },
+          "adapter": { "type": "string", "enum": ["OPENAI_DEVELOPERS", "ANTHROPIC_ENGINEERING"] },
+          "enabled": { "type": "boolean" },
+          "position": { "type": "integer", "minimum": 0, "maximum": 10000 }
+        }
+      },
+      "ReadingAdminSource": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ReadingSourceInput" },
+          { "type": "object",
+            "required": ["id", "lastCheckedAt", "lastSuccessAt", "lastError", "articleCount"],
+            "properties": {
+              "id": { "type": "string", "maxLength": 80 },
+              "lastCheckedAt": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+              "lastSuccessAt": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+              "lastError": { "anyOf": [{ "type": "string", "maxLength": 80 }, { "type": "null" }] },
+              "articleCount": { "type": "integer", "minimum": 0 }
+            }
+          }
+        ]
+      },
+      "ReadingAdminShelf": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["settings", "sources"],
+        "properties": {
+          "settings": { "$ref": "#/components/schemas/ReadingSettings" },
+          "sources": { "type": "array", "items": { "$ref": "#/components/schemas/ReadingAdminSource" } }
         }
       },
       "SiteSettings": {

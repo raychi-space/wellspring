@@ -31,6 +31,11 @@ raychi:
     enabled: ${RAYCHI_AGENT_ENABLED:false}
     url: ${RAYCHI_AGENT_URL:http://127.0.0.1:8092}
     token: ${RAYCHI_AGENT_TOKEN:}
+  reading:
+    sync-ms: ${RAYCHI_READING_SYNC_MS:14400000}
+    initial-delay-ms: ${RAYCHI_READING_INITIAL_DELAY_MS:15000}
+    translation-poll-ms: ${RAYCHI_READING_TRANSLATION_POLL_MS:2000}
+    request-timeout-ms: ${RAYCHI_READING_REQUEST_TIMEOUT_MS:15000}
   search:
     enabled: ${RAYCHI_SEARCH_ENABLED:false}
     url: ${RAYCHI_SEARCH_URL:http://127.0.0.1:8091}
