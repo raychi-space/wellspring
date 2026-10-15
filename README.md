@@ -1,5 +1,9 @@
 # wellspring
 
+系统导航：[架构](https://github.com/raychi-space/raychi/blob/main/ARCHITECTURE.md)、[文档地图](https://github.com/raychi-space/raychi/blob/main/docs/README.md)、[当前产品](https://github.com/raychi-space/raychi/blob/main/docs/product-specs/current-behavior.md)。这些跨仓资料为私有；本仓运行、契约与工作约束可独立查阅，缺权限时由负责人提供相关范围与约束。
+
+2026-10-15 功能验收：`feat/reading-shelf` 已通过完整测试和打包；尚未部署，阅读时区分开发分支与线上版本。
+
 **Part of Raychi · 内容服务**。Spring Boot 3.5 + Java 21 + MySQL，提供站长会话、文章工作稿与发布快照、图片上传和授权读取。访客页面在 [lantern](https://github.com/raychi-space/lantern)，管理界面在 [inkwell](https://github.com/raychi-space/inkwell)。Hugo 是待替换的旧博客处理方式，不是运行依赖。
 
 ## 本机运行
@@ -72,5 +76,9 @@ V11记录每篇最近100条工作稿修订，创建/保存/发布/撤回/成功�
 ## 相关文章
 
 公开文章可读取至多6条相关文章元数据，依据当前发布标签/分类在数据库匹配排序；不读取候选正文或工作稿，不调用模型。默认3条，无匹配返回空数组，未发布目标404。接口、错误与发布隔离见 [相关文章 v1](docs/api/related-articles-v1.md)。
+
+## 拾阅
+
+`/api/v1/public/reading` 提供最近 90 天的博客链接合集；管理接口维护来源、排序、启停、手动检查和翻译助手绑定。后台默认每 4 小时检查一次，只保存标题、链接与发布日期，不保存正文、摘要或外部图片。中文译题通过可替换的 `TranslationService` 调用 agent-core 通用翻译助手，原标题始终保留。接口与配置见[拾阅 API v1](docs/api/reading-v1.md)。
 
 [回收站](docs/api/content-trash-v1.md)：管理员移入/恢复为草稿及明确永久删除；TRASHED不进入普通列表/编辑/导出/历史，正文和图片恢复前均不公开。旧硬删除API兼容保留，无自动清空。V12与修订表/附件目录一起备份。

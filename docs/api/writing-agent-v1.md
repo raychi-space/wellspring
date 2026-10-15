@@ -35,7 +35,7 @@ GET 根据底层调用者 owner、taskType=configured_run 与站主 origin 校�
 
 Agent 默认关闭：`RAYCHI_AGENT_ENABLED=true`、`RAYCHI_AGENT_URL=http://127.0.0.1:8092`、`RAYCHI_AGENT_TOKEN=<服务端调用凭据>`。在 core 配置匹配的调用者 scopes configure/run/read、持久 DB 和 AGENT_SECRET_KEY。不依赖 search-core，不跨库。后台保存 Provider，然后分别测试聊天/工具；保存 Assistant 后在文章编辑器选择它。
 
-停用 Agent 集成可设 ENABLED=false；内容保存/发布功能照常可用。助手配置仍不存站点数据库；V7 增加发布摘要任务记录，见内容契约。core 数据库与加密主密钥需分别安全备份，历史任务不可通过改主密钥直接解密。
+停用 Agent 集成可设 ENABLED=false；后端内容保存及兼容发布 API 仍可用，不强制模型成功。当前管理台文章保存后还要调用 metadata 准备发布信息，停用时已保存正文保留但生成/发布预览会提示不可用；帖子不需要助手。不能将后端兼容能力理解为当前文章界面可无助手完成准备。助手配置仍不存站点数据库；V7 增加发布摘要任务记录，见内容契约。core 数据库与加密主密钥需分别安全备份，历史任务不可通过改主密钥直接解密。
 
 ## 发布前元数据（2026-10-03）
 
