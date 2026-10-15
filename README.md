@@ -2,7 +2,9 @@
 
 系统导航：[架构](https://github.com/raychi-space/raychi/blob/main/ARCHITECTURE.md)、[文档地图](https://github.com/raychi-space/raychi/blob/main/docs/README.md)、[当前产品](https://github.com/raychi-space/raychi/blob/main/docs/product-specs/current-behavior.md)。这些跨仓资料为私有；本仓运行、契约与工作约束可独立查阅，缺权限时由负责人提供相关范围与约束。
 
-2026-10-15 功能验收：`feat/reading-shelf` 已通过完整测试和打包；尚未部署，阅读时区分开发分支与线上版本。
+<a id="系统文档审阅入口"></a>
+
+新系统文档由 [raychi#67](https://github.com/raychi-space/raychi/pull/67) 提供；该 PR 未合并时，上述 main 新路径尚不可用，可从[文档地图审阅版](https://github.com/raychi-space/raychi/blob/1b6cb94c68e00d7f375edec17ef9822fba5d1778/docs/README.md)进入架构、产品和流程。私有仓仍需访问权限。
 
 **Part of Raychi · 内容服务**。Spring Boot 3.5 + Java 21 + MySQL，提供站长会话、文章工作稿与发布快照、图片上传和授权读取。访客页面在 [lantern](https://github.com/raychi-space/lantern)，管理界面在 [inkwell](https://github.com/raychi-space/inkwell)。Hugo 是待替换的旧博客处理方式，不是运行依赖。
 
