@@ -1,5 +1,7 @@
 # wellspring
 
+系统导航：[架构](https://github.com/raychi-space/raychi/blob/main/ARCHITECTURE.md)、[文档地图](https://github.com/raychi-space/raychi/blob/main/docs/README.md)、[当前产品](https://github.com/raychi-space/raychi/blob/main/docs/product-specs/current-behavior.md)。这些跨仓资料为私有；本仓运行、契约与工作约束可独立查阅，缺权限时由负责人提供相关范围与约束。
+
 **Part of Raychi · 内容服务**。Spring Boot 3.5 + Java 21 + MySQL，提供站长会话、文章工作稿与发布快照、图片上传和授权读取。访客页面在 [lantern](https://github.com/raychi-space/lantern)，管理界面在 [inkwell](https://github.com/raychi-space/inkwell)。Hugo 是待替换的旧博客处理方式，不是运行依赖。
 
 ## 本机运行

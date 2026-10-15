@@ -1,7 +1,11 @@
-# wellspring · Raychi 内容服务入口
+# wellspring · RayChi 内容服务
 
-开始任务先读本仓 [README](README.md)、当前 Issue/PR、[Raychi 仓库地图](https://github.com/raychi-space/raychi#仓库地图)、[开发流程](https://github.com/raychi-space/raychi/blob/main/docs/workflow.md)、[接口与联调](https://github.com/raychi-space/raychi/blob/main/docs/integration.md)及[验收规则](https://github.com/raychi-space/raychi/blob/main/docs/acceptance.md)；本仓职责见[模块说明](docs/module.md)。
+先读 [README](README.md)，按任务读[模块说明](docs/module.md)及对应 `docs/api/` 文档；现行站点定义为[语义契约](docs/api/contract-v0.2.md)和[OpenAPI](docs/api/openapi-v0.2.json)，旧文章兼容见 [v0.1](docs/api/contract-v0.1.md)。核对任务指定提交与工作树扩展。
 
-本仓拥有文章状态/发布快照、认证、附件、迁移与 HTTP API。v0.2 接口见[契约](docs/api/contract-v0.2.md)和[OpenAPI](docs/api/openapi-v0.2.json)，旧文章接口见[契约 v0.1](docs/api/contract-v0.1.md)。任务以 Issue/PR 指定的提交为准。改请求、响应、错误、权限或兼容行为时，同一 PR 更新 OpenAPI、语义说明及相关测试，并请 lantern/inkwell 消费方评审。
+新需求先检查相关需求、设计/ADR 与现有代码和公共能力，提出范围、复用方案、接口影响和验收方式，获得用户明确实施确认后再修改功能代码、配置或数据库。重大偏离重新确认；确认范围内持续执行，不重复审批常规细节。部署/线上启用另需授权。
 
-改动后按 README 执行 mvn test；涉及 API/权限/迁移时做相称测试，PR 区分测试环境与真实 MySQL/HTTP 结果，关联 Issue 并说明跨仓影响。不要提交凭据、附件或生产数据。本仓检查通过不代表主 Issue 验收通过；联调组合和最终结果在主 Issue 记录。GitHub 操作优先 gh CLI，不可用时用网页。
+跨仓规则见[开发流程](https://github.com/raychi-space/raychi/blob/main/docs/workflow.md#文档驱动开发)、[架构](https://github.com/raychi-space/raychi/blob/main/ARCHITECTURE.md)、[文档地图](https://github.com/raychi-space/raychi/blob/main/docs/README.md)和[验收](https://github.com/raychi-space/raychi/blob/main/docs/acceptance.md)。这些项目资料为私有；无权限时从本仓和授权提供的相关资料明确范围，由负责人补必要约束，不能把 404 当作不存在或自行重定义跨仓规则。
+
+本仓拥有内容状态、公开快照、认证、附件、迁移与站点 HTTP 契约；内核业务映射归本仓，通用执行与内核状态归其所有者。改请求/响应/权限/错误/兼容行为，同一 PR 更新所属 OpenAPI、语义说明和相关验证，消费方评审。不能跨库或让模型直接发布内容。
+
+验证按 README/CI 的 mvn test/mvn package；权限、接口、迁移和事务变化做相称检查，区分 H2、MockMvc 与真实 MySQL/HTTP 结果。纯文档修改只查内容、路径、链接与差异。PR 记录版本、命令、实际结果及未覆盖项，同步说明；单仓通过不代表主功能完成。不得提交凭据、附件或生产数据。GitHub 操作优先 gh CLI。

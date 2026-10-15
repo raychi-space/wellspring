@@ -25,7 +25,7 @@
 - GET `/api/v1/admin/search/export`：MySQL REPEATABLE_READ 一致性快照 `{entries:[{id,version,action,document?}]}`，包含墓碑。导出只备份，不改变同步确认状态。
 - POST `/api/v1/admin/search/restore`：等待当前同步批次完成并暂停本实例 worker；补齐内容目标 → 一致性快照 → 调内核全量替换 → 按导出版本逐行 CAS 确认 → 无论成败恢复 worker。全量导入超时 120 秒。期间发布照常提交；更新过的行保留 PENDING。
 - POST `/api/v1/admin/search/retry`：重新排队 ERROR/RETRY，返回 requeued。
-- DELETE `/api/v1/admin/contents/{id}?expectedVersion=N`：带乐观锁硬删除内容及资产数据库引用，204；保留搜索 DELETE 墓碑。实际文件回收沿用存储运维，暂不自动清理。
+- DELETE `/api/v1/admin/contents/{id}?expectedVersion=N`：带乐观锁硬删除内容及资产数据库引用，204；保留搜索 DELETE 墓碑。附件删除队列与内容事务同时提交，V9 的 AssetCleanupWorker 在事务提交后定时回收文件，失败保留队列重试；不扫描未知文件。旧 DELETE 仍为兼容硬删除，当前管理界面移入回收站，规则见[回收站](content-trash-v1.md)。
 
 `node scripts/search-maintenance.ts status|export|restore|retry [export-file]` 使用环境中的 `RAYCHI_API_URL`,`RAYCHI_ADMIN_USER`,`RAYCHI_ADMIN_PASSWORD`。导出正文文件默认权限 0600，应置于私有备份目录并定期删除。密码和服务 token 不进入日志。
 
