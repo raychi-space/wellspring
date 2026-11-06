@@ -30,8 +30,12 @@ public class ReadingSourceParser {
         LinkedHashMap<String, ParsedArticle> found = new LinkedHashMap<>();
         for (Element link : doc.select("a[href]")) {
             URI uri = safeUri(link.absUrl("href"));
-            if (uri == null || !"https".equals(uri.getScheme()) || !listing.getHost().equalsIgnoreCase(uri.getHost())
-                    || !uri.getPath().startsWith(pathPrefix) || uri.getPath().equals(pathPrefix)) continue;
+            if (uri == null || !"https".equals(uri.getScheme()) || !listing.getHost().equalsIgnoreCase(uri.getHost())) continue;
+            boolean listedEngineeringResearch = adapter.equals("ANTHROPIC_ENGINEERING")
+                    && uri.getPath().matches("/research/[^/]+/?")
+                    && link.closest("[data-listing-rows] article[data-listing-row]") != null;
+            if ((!uri.getPath().startsWith(pathPrefix) && !listedEngineeringResearch)
+                    || uri.getPath().equals(pathPrefix)) continue;
             if (uri.getPath().startsWith(pathPrefix + "topic/") || uri.getPath().contains("/tag/")) continue;
             Element titleNode = link.selectFirst("h1,h2,h3,h4");
             if (titleNode == null && adapter.equals("OPENAI_DEVELOPERS"))

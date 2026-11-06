@@ -27,6 +27,31 @@ class ReadingSourceParserTest {
     }
 
     @Test
+    void acceptsResearchPathsOnlyInsideTheEngineeringArticleListing() {
+        String html = """
+                <nav><a href="/research/unrelated">Unrelated research navigation</a></nav>
+                <div data-listing-rows="true">
+                  <article data-listing-row="article-source-control">
+                    <header><time>Oct 13, 2026</time></header>
+                    <div><h3><a href="/research/redesigning-source-control">Redesigning source control</a></h3></div>
+                  </article>
+                  <article data-listing-row="article-other">
+                    <time>Sep 30, 2026</time><h3><a href="/research/agent-tools">Agent tools</a></h3>
+                    <a href="/research/team/alignment">Alignment team</a>
+                    <a href="https://malicious.example/research/lookalike">External article</a>
+                  </article>
+                </div>
+                <article><time>Oct 14, 2026</time><a href="/research/not-listed">Unlisted research</a></article>
+                """;
+        var items = parser.parse("ANTHROPIC_ENGINEERING", "https://www.anthropic.com/engineering", html,
+                Instant.parse("2026-11-06T00:00:00Z"));
+        assertThat(items).extracting(ReadingModels.ParsedArticle::title)
+                .containsExactly("Redesigning source control", "Agent tools");
+        assertThat(items.getFirst().url()).isEqualTo("https://www.anthropic.com/research/redesigning-source-control");
+        assertThat(items.getFirst().publishedAt()).isEqualTo(Instant.parse("2026-10-13T00:00:00Z"));
+    }
+
+    @Test
     void resolvesOpenAiCardsWithoutReadingArticleBodies() {
         String html = """
                 <main><article><a href="/blog/agent-tools">
