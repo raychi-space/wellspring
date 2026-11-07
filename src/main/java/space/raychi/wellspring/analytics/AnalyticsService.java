@@ -21,8 +21,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.LinkedMultiValueMap;
 import space.raychi.wellspring.api.ApiException;
-import space.raychi.wellspring.service.ArticleService;
 
 @Service
 public class AnalyticsService {
@@ -40,7 +40,6 @@ public class AnalyticsService {
     }
     private final AnalyticsClient client;
     private final AnalyticsSettingsService settings;
-    private final ArticleService articles;
     private final String origin;
     private final AtomicLong delivered = new AtomicLong(), dropped = new AtomicLong();
     private final ThreadPoolExecutor worker = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS,
@@ -48,9 +47,9 @@ public class AnalyticsService {
                 Thread thread = new Thread(task, "analytics-collector"); thread.setDaemon(true); return thread;
             });
 
-    public AnalyticsService(AnalyticsClient client, ArticleService articles, AnalyticsSettingsService settings,
-            @Value("${raychi.analytics.origin:http://127.0.0.1:3000}") String origin) {
-        this.client = client; this.articles = articles; this.settings = settings; this.origin = origin;
+    public AnalyticsService(AnalyticsClient client, AnalyticsSettingsService settings,
+            @Value("${raychi.analytics.origin}") String origin) {
+        this.client = client; this.settings = settings; this.origin = origin;
         URI uri = URI.create(origin);
         if (!Set.of("http", "https").contains(uri.getScheme()) || uri.getHost() == null
                 || uri.getUserInfo() != null || uri.getQuery() != null || uri.getFragment() != null
@@ -116,15 +115,11 @@ public class AnalyticsService {
         // Hostnames only; numeric IP literals are never accepted as source identity.
         if (value.matches("[0-9.]+")) throw bad();
     }
-    private void path(String value, boolean published) {
+    /** v1 retains its historical path filter; v2 uses the full public-path validator. */
+    private static void legacyPath(String value) {
         if (value == null) throw bad();
         if (Set.of("/", "/writing", "/posts", "/archive", "/more").contains(value)) return;
         if (!value.matches("/(writing|posts)/[a-z0-9]+(?:-[a-z0-9]+)*") || value.length() > 160) throw bad();
-        if (published) {
-            String[] parts = value.split("/");
-            try { articles.getPublic(parts[1].equals("writing") ? "ARTICLE" : "POST", parts[2]); }
-            catch (ApiException ex) { throw bad(); }
-        }
     }
     private void publicPath(String value) {
         try {
@@ -146,20 +141,16 @@ public class AnalyticsService {
         for (String key : input.keySet())
             if (!Set.of("from", "to", "path", "source").contains(key) || input.get(key).size() != 1) throw bad();
         String from = input.getFirst("from"), to = input.getFirst("to");
-        try {
-            if (from == null || to == null || !from.matches("\\d{4}-\\d{2}-\\d{2}") || !to.matches("\\d{4}-\\d{2}-\\d{2}")) throw bad();
-            long days = ChronoUnit.DAYS.between(LocalDate.parse(from), LocalDate.parse(to));
-            if (days < 1 || days > 366) throw bad();
-        } catch (java.time.DateTimeException ex) { throw bad(); }
-        if (input.containsKey("path")) path(input.getFirst("path"), false);
+        validateRange(from, to);
+        if (input.containsKey("path")) legacyPath(input.getFirst("path"));
         if (input.containsKey("source") && !"direct_or_unknown".equals(input.getFirst("source"))) source(input.getFirst("source"));
         if (!client.enabled) throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "ANALYTICS_DISABLED", "访问统计尚未启用。");
-        String query = input.entrySet().stream().map(e -> e.getKey() + "=" + URLEncoder.encode(e.getValue().getFirst(), StandardCharsets.UTF_8))
-                .collect(java.util.stream.Collectors.joining("&"));
+        String query = encodeQuery(input);
         try { return client.report(query, from, to); }
         catch (IllegalStateException ex) { throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "ANALYTICS_UNAVAILABLE", "访问统计暂时不可用，请稍后重试。"); }
     }
     public JsonNode detailsReport(MultiValueMap<String, String> input, boolean events) {
+        input = new LinkedMultiValueMap<>(input);
         Set<String> allowed = events ? Set.of("from", "to", "path", "source", "ip", "country", "province", "city", "page", "pageSize")
                 : Set.of("from", "to", "path", "source", "ip", "country", "province", "city");
         for (String key : input.keySet()) {
@@ -168,15 +159,13 @@ public class AnalyticsService {
             if (value == null || value.isBlank() || value.length() > 512 || value.matches(".*[\\x00-\\x1f].*")) throw bad();
         }
         String from = input.getFirst("from"), to = input.getFirst("to");
+        validateRange(from, to);
         try {
-            if (from == null || to == null || !from.matches("\\d{4}-\\d{2}-\\d{2}") || !to.matches("\\d{4}-\\d{2}-\\d{2}")) throw bad();
-            long days = ChronoUnit.DAYS.between(LocalDate.parse(from), LocalDate.parse(to));
-            if (days < 1 || days > 366) throw bad();
             for (String key : new String[]{"page", "pageSize"}) if (input.containsKey(key)) {
                 int value = Integer.parseInt(input.getFirst(key));
                 if (value < 1 || value > (key.equals("page") ? 10000 : 100)) throw bad();
             }
-        } catch (java.time.DateTimeException | NumberFormatException ex) { throw bad(); }
+        } catch (NumberFormatException ex) { throw bad(); }
         if (input.containsKey("path")) publicPath(input.getFirst("path"));
         if (input.containsKey("ip")) {
             String ip = input.getFirst("ip");
@@ -184,11 +173,24 @@ public class AnalyticsService {
             try { input.set("ip", java.net.InetAddress.getByName(ip).getHostAddress()); } catch (java.net.UnknownHostException ex) { throw bad(); }
         }
         if (!client.enabled) throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "ANALYTICS_DISABLED", "访问统计尚未启用。");
-        String query = input.entrySet().stream().map(e -> e.getKey() + "=" + URLEncoder.encode(e.getValue().getFirst(), StandardCharsets.UTF_8))
-                .collect(java.util.stream.Collectors.joining("&"));
+        String query = encodeQuery(input);
         try { return client.details(query, from, to, events); }
         catch (IllegalStateException ex) { throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "ANALYTICS_UNAVAILABLE", "访问统计暂时不可用，请稍后重试。"); }
     }
+    private static void validateRange(String from, String to) {
+        try {
+            if (from == null || to == null || !from.matches("\\d{4}-\\d{2}-\\d{2}") || !to.matches("\\d{4}-\\d{2}-\\d{2}")) throw bad();
+            long days = ChronoUnit.DAYS.between(LocalDate.parse(from), LocalDate.parse(to));
+            if (days < 1 || days > 366) throw bad();
+        } catch (java.time.DateTimeException ex) { throw bad(); }
+    }
+
+    private static String encodeQuery(MultiValueMap<String, String> input) {
+        return input.entrySet().stream()
+                .map(e -> e.getKey() + "=" + URLEncoder.encode(e.getValue().getFirst(), StandardCharsets.UTF_8))
+                .collect(java.util.stream.Collectors.joining("&"));
+    }
+
     private static ApiException bad() { return new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "统计参数无效。"); }
     @PreDestroy void stop() { worker.shutdownNow(); }
 }
