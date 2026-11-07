@@ -37,7 +37,7 @@ public class AnalyticsClient {
     public boolean collect(JsonNode event) {
         for (int attempt = 0; attempt < 2; attempt++) {
             try {
-                var response = http.send(request("/events").header("Content-Type", "application/json")
+                var response = http.send(requestV2("/events").header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(event))).build(),
                         HttpResponse.BodyHandlers.discarding());
                 int status = response.statusCode();
@@ -53,6 +53,58 @@ public class AnalyticsClient {
     private HttpRequest.Builder request(String suffix) {
         return HttpRequest.newBuilder(URI.create(base + suffix)).timeout(Duration.ofSeconds(1))
                 .header("Authorization", "Bearer " + token);
+    }
+    private HttpRequest.Builder requestV2(String suffix) {
+        return HttpRequest.newBuilder(URI.create(base.replace("/v1/apps/", "/v2/apps/") + suffix)).timeout(Duration.ofSeconds(1))
+                .header("Authorization", "Bearer " + token);
+    }
+
+    public JsonNode details(String query, String from, String to, boolean events) {
+        try {
+            var response = http.send(requestV2((events ? "/events?" : "/report?") + query).GET().build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200 || response.body().length() > 250_000) throw new IllegalStateException();
+            JsonNode data = json.readTree(response.body());
+            if (!data.isObject() || !app.equals(data.path("appId").asText()) || !from.equals(data.path("from").asText()) || !to.equals(data.path("to").asText())) throw new IllegalStateException();
+            var safe = json.createObjectNode();
+            for (String key : new String[]{"appId", "from", "to"}) safe.set(key, data.get(key));
+            if (events) {
+                for (String key : new String[]{"total", "page", "pageSize"}) copyNumber(data, safe, key);
+                if (!data.path("items").isArray() || data.path("items").size() > 100) throw new IllegalStateException();
+                var items = safe.putArray("items");
+                for (JsonNode item : data.path("items")) {
+                    var row = items.addObject();
+                    for (String key : new String[]{"id", "occurredAt", "path", "source", "country", "province", "city"}) copyText(item, row, key);
+                    if (item.path("ip").isNull()) row.putNull("ip"); else copyText(item, row, "ip");
+                }
+            } else {
+                var summary = safe.putObject("summary");
+                for (String key : new String[]{"pageViews", "visitors", "todayPageViews", "todayVisitors"}) copyNumber(data.path("summary"), summary, key);
+                for (String key : new String[]{"trend", "countries", "provinces", "cities", "sources", "popularPaths"}) {
+                    if (!data.path(key).isArray() || data.path(key).size() > 366) throw new IllegalStateException();
+                    var rows = safe.putArray(key);
+                    for (JsonNode item : data.path(key)) {
+                        var row = rows.addObject(); copyText(item, row, key.equals("trend") ? "day" : "name"); copyNumber(item, row, "pageViews");
+                    }
+                }
+            }
+            var retention = safe.putObject("retention");
+            for (String key : new String[]{"rawDays", "aggregateDays"}) copyNumber(data.path("retention"), retention, key);
+            for (String key : new String[]{"timeZone", "visitorTrackingSince"}) copyText(data.path("retention"), retention, key);
+            if (!"Asia/Shanghai".equals(retention.path("timeZone").asText())) throw new IllegalStateException();
+            java.time.Instant.parse(retention.path("visitorTrackingSince").asText());
+            if (!data.path("retention").path("geoConfigured").isBoolean()) throw new IllegalStateException();
+            retention.set("geoConfigured", data.path("retention").get("geoConfigured"));
+            return safe;
+        } catch (InterruptedException ex) { Thread.currentThread().interrupt(); throw new IllegalStateException("Analytics unavailable"); }
+        catch (Exception ex) { throw new IllegalStateException("Analytics unavailable"); }
+    }
+    private void copyNumber(JsonNode input, com.fasterxml.jackson.databind.node.ObjectNode output, String key) {
+        if (!input.path(key).isIntegralNumber() || !input.path(key).canConvertToLong() || input.path(key).asLong() < 0) throw new IllegalStateException();
+        output.set(key, input.get(key));
+    }
+    private void copyText(JsonNode input, com.fasterxml.jackson.databind.node.ObjectNode output, String key) {
+        if (!input.path(key).isTextual() || input.path(key).asText().length() > 512) throw new IllegalStateException();
+        output.set(key, input.get(key));
     }
 
     public JsonNode report(String query, String from, String to) {
