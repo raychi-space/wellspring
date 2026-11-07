@@ -65,7 +65,9 @@ mvn spring-boot:run
 
 ## 访问统计
 
-可选独立 waymarks 桥接默认关闭，开启所需配置和采集/报表权限见 [站点统计契约](docs/api/analytics-v1.md)。采集只有有界内存队列，失败不参与内容事务；管理端可持久保存全站采集开关，关闭不影响历史报表；V14 初始化沿用现有部署启用状态，不自动开启统计服务。管理员报表区分 PV、访客日及近似访问。运行 `mvn test` 覆盖同源/CSRF、私有路径、站长/机器人、失败重试及队列满。
+可选 waymarks 桥接的部署配置默认关闭；管理台持久采集偏好默认开启（V14），实际采集需两者同时允许，关闭偏好后仍可查询历史。[统计 v2](docs/api/analytics-v2.md)覆盖全部公开页、搜索和 404，拒绝管理/API 路径；可信 IP 来自服务端连接，原始 IP 明细仅 ADMIN 可读。异步采集使用有界队列，失败不参与内容事务。
+
+配置默认值集中在 `src/main/resources/application.yml` 的 `raychi.analytics`，`.env.example` 仅为本仓独立启动示例；部署时注入环境变量覆盖。先升级 waymarks 并固定 `Asia/Shanghai`，再升级本站与前端。旧[统计 v1](docs/api/analytics-v1.md)报表保留兼容。`mvn test` 覆盖同源/CSRF、权限、来源/IP 校验、查询、队列与失败重试；模块职责见[模块说明](docs/module.md)。开发与配置检查不自动授权部署。
 
 ## 单篇内容导出
 

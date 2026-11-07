@@ -1,5 +1,7 @@
 # 站点访问统计 v1
 
+版本说明：本页保留旧聚合 report/status/settings 的兼容说明。采集范围、IP 持久化、访客标识及新查询已由 [v2 扩展](analytics-v2.md)替代；下述旧版匿名采集描述仅作为升级前规则，不代表新版公开站行为。
+
 站点仅通过 wellspring 桥接 [waymarks v1](https://github.com/raychi-space/waymarks/blob/9274f8b008cdb60aa48021268bd7952664a0a21a/docs/contract-v1.md)，token 只留在服务端。统计为尽力采集，不参与内容事务、不影响阅读/发布；队列和失败事件不持久化，重启可能丢失尚未送达事件。
 
 ## 匿名采集

@@ -14,7 +14,7 @@ Spring Boot 启动类在根包 `space.raychi.wellspring`。通用内容/认证/�
 
 `mvn test` 是当前仓库 CI 命令，`mvn package` 构建应用；`PublishingFlowTest` 和 `ContentFlowTest` 用 H2 覆盖图片权限、内容类型、筛选、配置与版本冲突；`SiteSettingsConcurrencyTest` 验证配置并发；`ApiContractTest` 用 MockMvc 验证 HTTP 结构、错误、图片 GET/HEAD 和登录登出。MySQL/真实 HTTP 的跨仓验收需另记录环境、请求、实际结果和各仓提交，不能由 H2 单测替代。流程见[项目文档](https://github.com/raychi-space/raychi/blob/main/docs/workflow.md)。
 
-访问统计接入见 [wellspring 统计契约](https://github.com/raychi-space/wellspring/blob/main/docs/api/analytics-v1.md)。采集服务和聚合状态归独立 waymarks；应用不访问其 SQLite，浏览器不接收服务 token。
+访问统计接入见 [wellspring 统计契约](https://github.com/raychi-space/wellspring/blob/main/docs/api/analytics-v2.md)。采集服务和聚合状态归独立 waymarks；应用不访问其 SQLite，浏览器不接收服务 token。`application.yml` 的 `raychi.analytics` 是本站默认配置入口，Java 只绑定配置。`AnalyticsService` 负责采集规则、队列和两版查询共用的日期/编码校验，不再依赖内容查询；`AnalyticsClient` 共用版本化 URL、认证、超时和响应身份检查，再分别校验 v1/v2 白名单，不能把整个上游 JSON 直接返回。`AnalyticsSettingsService` 通过 Mapper 保存采集偏好；旧 v1 报表仍保留兼容。
 
 ## 接入与后台任务地图
 
