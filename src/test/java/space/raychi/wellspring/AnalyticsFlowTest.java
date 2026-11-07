@@ -67,6 +67,8 @@ class AnalyticsFlowTest {
     @AfterAll static void stop() { upstream.stop(0); }
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
+    @Autowired space.raychi.wellspring.mapper.AnalyticsSettingsMapper settingsMapper;
+    @Autowired space.raychi.wellspring.analytics.AnalyticsClient analyticsClient;
 
     private String event(String path) throws Exception {
         return json.writeValueAsString(Map.of("id", UUID.randomUUID().toString(), "path", path,
@@ -147,6 +149,64 @@ class AnalyticsFlowTest {
                 .andExpect(jsonPath("$.retention.secret").doesNotExist());
         for (String query : new String[]{"from=x&to=2026-10-09", "from=2026-10-09&to=2026-10-01", "from=2025-01-01&to=2026-10-09", "from=2026-10-01&to=2026-10-09&ip=1.1.1.1", "from=2026-10-01&from=2026-10-02&to=2026-10-09"})
             mvc.perform(get("/api/v1/admin/analytics/report?" + query).with(user("owner"))).andExpect(status().isBadRequest());
+    }
+
+    @Test void settingsRequireAdminCsrfAndStrictVersionedInput() throws Exception {
+        String path = "/api/v1/admin/analytics/settings";
+        mvc.perform(get(path)).andExpect(status().isUnauthorized());
+        mvc.perform(get(path).with(user("reader"))).andExpect(status().isForbidden());
+        mvc.perform(put(path).with(user("owner").roles("ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":false,\"version\":0}"))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("CSRF_INVALID"));
+        mvc.perform(put(path).with(csrf()).with(user("reader"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":false,\"version\":0}"))
+                .andExpect(status().isForbidden());
+        for (String body : new String[]{"{}", "{\"enabled\":\"false\",\"version\":0}",
+                "{\"enabled\":false,\"version\":-1}", "{\"enabled\":false,\"version\":0.5}",
+                "{\"enabled\":false,\"version\":9223372036854775808}",
+                "{\"enabled\":false,\"version\":0,\"token\":\"forged\"}"})
+            mvc.perform(put(path).with(csrf()).with(user("owner").roles("ADMIN"))
+                    .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+    }
+
+    @Test void disablingIsPersistentStopsCollectionAndPreservesReports() throws Exception {
+        String path = "/api/v1/admin/analytics/settings";
+        var before = json.readTree(mvc.perform(get(path).with(user("owner").roles("ADMIN")))
+                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.configured").value(true)).andReturn().getResponse().getContentAsString());
+        long version = before.path("version").asLong();
+        String excluded = event("/");
+        try {
+            mvc.perform(put(path).with(csrf()).with(user("owner").roles("ADMIN"))
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":false,\"version\":" + version + "}"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(false))
+                    .andExpect(jsonPath("$.version").value(version + 1));
+            var reopened = new space.raychi.wellspring.analytics.AnalyticsSettingsService(settingsMapper, analyticsClient);
+            assertThat(reopened.read().enabled()).isFalse();
+            mvc.perform(collect(excluded)).andExpect(status().isNoContent());
+            mvc.perform(get("/api/v1/admin/analytics/status").with(user("owner")))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(false));
+            mvc.perform(get("/api/v1/admin/analytics/report?from=2026-10-01&to=2026-10-09").with(user("owner")))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.pageViews").value(2));
+            mvc.perform(put(path).with(csrf()).with(user("owner").roles("ADMIN"))
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":true,\"version\":" + version + "}"))
+                    .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ANALYTICS_SETTINGS_VERSION_CONFLICT"));
+        } finally {
+            var current = settingsMapper.select();
+            mvc.perform(put(path).with(csrf()).with(user("owner").roles("ADMIN"))
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":true,\"version\":" + current.version() + "}"))
+                    .andExpect(status().isOk());
+        }
+        String marker = event("/");
+        mvc.perform(collect(marker)).andExpect(status().isAccepted());
+        awaitEvent(json.readTree(marker).path("id").asText());
+        assertThat(payloads).noneMatch(payload -> payload.contains(jsonId(excluded)));
+    }
+
+    private String jsonId(String body) {
+        try { return json.readTree(body).path("id").asText(); }
+        catch (Exception ex) { throw new IllegalStateException(ex); }
     }
 
     private void awaitEvent(String id) throws InterruptedException {

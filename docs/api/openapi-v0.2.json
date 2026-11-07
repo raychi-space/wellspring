@@ -3290,6 +3290,133 @@
         }
       }
     },
+    "/admin/analytics/settings": {
+      "get": {
+        "summary": "Read persisted collection preference and deployment availability; ADMIN",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Administrator session required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Persist collection preference immediately with optimistic version; ADMIN and CSRF",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyticsSettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Administrator session required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role or CSRF validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ANALYTICS_SETTINGS_VERSION_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ANALYTICS_NOT_CONFIGURED; deployment has not enabled analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/analytics/status": {
       "get": {
         "summary": "Current process collector status; ADMIN",
@@ -6277,6 +6404,48 @@
           }
         }
       },
+      "AnalyticsSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "enabled",
+          "configured",
+          "version"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Persisted collection preference; effective only when configured is true"
+          },
+          "configured": {
+            "type": "boolean",
+            "description": "Deployment enabled the analytics integration; does not imply upstream health"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "AnalyticsSettingsInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "enabled",
+          "version"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
       "AnalyticsStatus": {
         "type": "object",
         "additionalProperties": false,
@@ -6288,7 +6457,8 @@
         ],
         "properties": {
           "enabled": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Effective collection state: deployment enabled and persisted collection preference enabled"
           },
           "queued": {
             "type": "integer",
