@@ -8,7 +8,6 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
-import space.raychi.wellspring.service.ArticleService;
 
 class AnalyticsQueueTest {
     @Test void disablingDropsWaitingEventsBeforeTheyReachTheCollector() throws Exception {
@@ -18,7 +17,7 @@ class AnalyticsQueueTest {
         doAnswer(call -> { entered.countDown(); release.await(5, TimeUnit.SECONDS); return false; }).when(client).collect(any());
         var settings = mock(AnalyticsSettingsService.class);
         when(settings.collectionEnabled()).thenReturn(true);
-        var service = new AnalyticsService(client, mock(ArticleService.class), settings, "https://fixture.invalid");
+        var service = new AnalyticsService(client, settings, "https://fixture.invalid");
         try {
             var event = json.createObjectNode().put("id", UUID.randomUUID().toString()).put("path", "/")
                     .put("occurredAt", Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS).toString());
@@ -42,7 +41,7 @@ class AnalyticsQueueTest {
         doAnswer(call -> { entered.countDown(); release.await(5, TimeUnit.SECONDS); return false; }).when(client).collect(any());
         var settings = mock(AnalyticsSettingsService.class);
         when(settings.collectionEnabled()).thenReturn(true);
-        var service = new AnalyticsService(client, mock(ArticleService.class), settings, "https://fixture.invalid");
+        var service = new AnalyticsService(client, settings, "https://fixture.invalid");
         try {
             var event = json.createObjectNode().put("id", UUID.randomUUID().toString()).put("path", "/")
                     .put("occurredAt", Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS).toString());
