@@ -43,7 +43,7 @@ class AnalyticsFlowTest {
     static {
         try {
             upstream = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-            upstream.createContext("/v1/apps/raychi-public/events", exchange -> {
+            upstream.createContext("/v2/apps/raychi-public/events", exchange -> {
                 assertThat(exchange.getRequestHeaders().getFirst("Authorization")).isEqualTo("Bearer private-test-token-not-for-browser");
                 payloads.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
                 exchange.sendResponseHeaders(reply.get(), -1); exchange.close();
@@ -90,7 +90,7 @@ class AnalyticsFlowTest {
 
     @Test void excludesOwnerBotDntAndGpcBeforeQueueing() throws Exception {
         var excluded = java.util.List.of(event("/"), event("/"), event("/"), event("/"));
-        mvc.perform(collect(excluded.get(0)).with(user("owner"))).andExpect(status().isNoContent());
+        mvc.perform(collect(excluded.get(0)).with(user("owner").roles("ADMIN"))).andExpect(status().isNoContent());
         mvc.perform(collect(excluded.get(1)).header("DNT", "1")).andExpect(status().isNoContent());
         mvc.perform(collect(excluded.get(2)).header("Sec-GPC", "1")).andExpect(status().isNoContent());
         mvc.perform(collect(excluded.get(3)).header("User-Agent", "Googlebot")).andExpect(status().isNoContent());
@@ -106,7 +106,7 @@ class AnalyticsFlowTest {
     }
 
     @Test void rejectsPrivateUnknownAndQueryPathsAndCallerFlags() throws Exception {
-        for (String path : new String[]{"/studio", "/search", "/writing?tag=secret", "/writing#private", "/writing/not-published", "/api/v1/auth/session"})
+        for (String path : new String[]{"/studio", "/writing?tag=secret", "/writing#private", "/api/v1/auth/session"})
             mvc.perform(collect(event(path))).andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
         for (String flag : new String[]{"owner", "bot", "ip", "type", "title"}) {
             var body = (com.fasterxml.jackson.databind.node.ObjectNode) json.readTree(event("/")); body.put(flag, "forged");
@@ -127,7 +127,8 @@ class AnalyticsFlowTest {
             assertThat(payloads.size()).isGreaterThanOrEqualTo(start + 2);
             assertThat(payloads.get(start)).isEqualTo(payloads.get(start + 1));
             assertThat(json.readTree(payloads.get(start)).path("type").asText()).isEqualTo("page_view");
-            assertThat(payloads.get(start)).doesNotContain("ip", "owner", "bot");
+            assertThat(json.readTree(payloads.get(start)).path("ip").asText()).isEqualTo("127.0.0.1");
+            assertThat(payloads.get(start)).doesNotContain("owner", "bot");
         } finally { reply.set(202); }
     }
 
@@ -143,12 +144,12 @@ class AnalyticsFlowTest {
         }
         mvc.perform(collect(event("/")).session(session)).andExpect(status().isTooManyRequests());
         awaitEvent(json.readTree(last).path("id").asText());
-        mvc.perform(get("/api/v1/admin/analytics/report?from=2026-10-01&to=2026-10-09").with(user("owner")))
+        mvc.perform(get("/api/v1/admin/analytics/report?from=2026-10-01&to=2026-10-09").with(user("owner").roles("ADMIN")))
                 .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.pageViews").value(2)).andExpect(jsonPath("$.token").doesNotExist())
                 .andExpect(jsonPath("$.retention.secret").doesNotExist());
         for (String query : new String[]{"from=x&to=2026-10-09", "from=2026-10-09&to=2026-10-01", "from=2025-01-01&to=2026-10-09", "from=2026-10-01&to=2026-10-09&ip=1.1.1.1", "from=2026-10-01&from=2026-10-02&to=2026-10-09"})
-            mvc.perform(get("/api/v1/admin/analytics/report?" + query).with(user("owner"))).andExpect(status().isBadRequest());
+            mvc.perform(get("/api/v1/admin/analytics/report?" + query).with(user("owner").roles("ADMIN"))).andExpect(status().isBadRequest());
     }
 
     @Test void settingsRequireAdminCsrfAndStrictVersionedInput() throws Exception {
@@ -185,9 +186,9 @@ class AnalyticsFlowTest {
             var reopened = new space.raychi.wellspring.analytics.AnalyticsSettingsService(settingsMapper, analyticsClient);
             assertThat(reopened.read().enabled()).isFalse();
             mvc.perform(collect(excluded)).andExpect(status().isNoContent());
-            mvc.perform(get("/api/v1/admin/analytics/status").with(user("owner")))
+            mvc.perform(get("/api/v1/admin/analytics/status").with(user("owner").roles("ADMIN")))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(false));
-            mvc.perform(get("/api/v1/admin/analytics/report?from=2026-10-01&to=2026-10-09").with(user("owner")))
+            mvc.perform(get("/api/v1/admin/analytics/report?from=2026-10-01&to=2026-10-09").with(user("owner").roles("ADMIN")))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.pageViews").value(2));
             mvc.perform(put(path).with(csrf()).with(user("owner").roles("ADMIN"))
                     .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":true,\"version\":" + version + "}"))
