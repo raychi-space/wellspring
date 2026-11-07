@@ -6,12 +6,28 @@ import java.util.Map;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import space.raychi.wellspring.api.ApiResponses;
+import space.raychi.wellspring.dto.AnalyticsSettingsDto.Settings;
 
 @RestController
 public class AnalyticsController {
     private final AnalyticsService analytics;
-    public AnalyticsController(AnalyticsService analytics) { this.analytics = analytics; }
+    private final AnalyticsSettingsService settings;
+    public AnalyticsController(AnalyticsService analytics, AnalyticsSettingsService settings) {
+        this.analytics = analytics; this.settings = settings;
+    }
+
+    @GetMapping("/api/v1/admin/analytics/settings")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Settings> settings() { return ApiResponses.okNoStore(settings.read()); }
+
+    @PutMapping("/api/v1/admin/analytics/settings")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Settings> saveSettings(@RequestBody JsonNode input) {
+        return ApiResponses.okNoStore(settings.save(input));
+    }
 
     @PostMapping("/api/v1/public/analytics/events")
     public ResponseEntity<?> collect(@RequestBody JsonNode input, HttpServletRequest request) {

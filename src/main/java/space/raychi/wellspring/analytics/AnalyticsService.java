@@ -39,6 +39,7 @@ public class AnalyticsService {
         }
     }
     private final AnalyticsClient client;
+    private final AnalyticsSettingsService settings;
     private final ArticleService articles;
     private final String origin;
     private final AtomicLong delivered = new AtomicLong(), dropped = new AtomicLong();
@@ -47,9 +48,9 @@ public class AnalyticsService {
                 Thread thread = new Thread(task, "analytics-collector"); thread.setDaemon(true); return thread;
             });
 
-    public AnalyticsService(AnalyticsClient client, ArticleService articles,
+    public AnalyticsService(AnalyticsClient client, ArticleService articles, AnalyticsSettingsService settings,
             @Value("${raychi.analytics.origin:http://127.0.0.1:3000}") String origin) {
-        this.client = client; this.articles = articles; this.origin = origin;
+        this.client = client; this.articles = articles; this.settings = settings; this.origin = origin;
         URI uri = URI.create(origin);
         if (!Set.of("http", "https").contains(uri.getScheme()) || uri.getHost() == null
                 || uri.getUserInfo() != null || uri.getQuery() != null || uri.getFragment() != null
@@ -58,8 +59,9 @@ public class AnalyticsService {
 
     public String collect(JsonNode input, String requestOrigin, String userAgent, boolean excluded, SessionBudget budget) {
         if (!origin.equals(requestOrigin)) throw new ApiException(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "请求来源无效。");
-        if (!client.enabled || excluded || userAgent == null || userAgent.isBlank()
+        if (excluded || userAgent == null || userAgent.isBlank()
                 || userAgent.toLowerCase(Locale.ROOT).matches(".*(bot|crawl|spider|slurp|headless|preview).*")) return null;
+        if (!settings.collectionEnabled()) return null;
         if (!budget.accept()) throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "ANALYTICS_RATE_LIMITED", "采集请求过于频繁。");
         if (input == null || !input.isObject()) throw bad();
         var names = input.fieldNames();
@@ -79,7 +81,12 @@ public class AnalyticsService {
         if (source != null) source(source);
         ObjectNode event = ((ObjectNode) input).deepCopy(); event.put("type", "page_view");
         try {
-            worker.execute(() -> { if (client.collect(event)) delivered.incrementAndGet(); else dropped.incrementAndGet(); });
+            worker.execute(() -> {
+                boolean success = false;
+                try { success = settings.collectionEnabled() && client.collect(event); }
+                catch (RuntimeException ignored) { /* A settings read failure must also fail closed. */ }
+                if (success) delivered.incrementAndGet(); else dropped.incrementAndGet();
+            });
             return "queued";
         } catch (RejectedExecutionException ex) { dropped.incrementAndGet(); return "dropped"; }
     }
@@ -110,7 +117,7 @@ public class AnalyticsService {
     }
 
     public Map<String, Object> status() {
-        return Map.of("enabled", client.enabled, "queued", worker.getQueue().size(),
+        return Map.of("enabled", settings.collectionEnabled(), "queued", worker.getQueue().size(),
                 "delivered", delivered.get(), "dropped", dropped.get());
     }
     public JsonNode report(MultiValueMap<String, String> input) {
