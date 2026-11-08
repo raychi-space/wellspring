@@ -4,7 +4,7 @@
 
 Spring Boot 启动类在根包 `space.raychi.wellspring`。通用内容/认证/附件控制器在 `controller/`；搜索、写作、统计、拾阅分别在 `search/`、`ai/`、`analytics/`、`reading/` 功能包。控制器负责参数绑定、应用服务调用、权限/传输适配和响应，不直接操作内容持久化。`service/` 下的 `ArticleService` 管理内容工作稿、发布快照和版本冲突，`TaxonomyService` 管理分类标签，`AssetService` 管理图片校验、文件存储与可见性，`AuthService` 管理会话，`SiteSettingsService` 管理配置校验、旧字段兼容与乐观锁。拾阅拥有来源、链接元数据、同步调度和翻译队列；通用翻译边界在 `ai/TranslationService`。事务边界位于 Service；旧文章端点的类型校验与写入在同一个事务中完成。
 
-`mapper/` 下的 Mapper 封装 JdbcTemplate SQL、结果映射及数据库写入结果；`entity/` 保存持久化记录与写入数据，Entity 只在 Mapper 和 Service 之间使用。`dto/` 定义传输模型，公开内容和管理内容使用不同 DTO，Controller 不直接返回数据库记录。Service 完成 Entity → DTO 转换。认证使用 Spring Security；AdminAccountService / AdminAccountMapper 管理单管理员 MySQL 凭据、首次初始化及乐观版本更新，CredentialVersionFilter 注销过期凭据版本的会话。
+`mapper/` 下的 Mapper 封装 JdbcTemplate SQL、结果映射及数据库写入结果；`entity/` 保存持久化记录与写入数据，Entity 只在 Mapper 和 Service 之间使用。`dto/` 定义传输模型，公开内容和管理内容使用不同 DTO，Controller 不直接返回数据库记录。Service 完成 Entity → DTO 转换。认证使用 Spring Security；AdminAccountService / AdminAccountMapper 管理单管理员数据库凭据、首次初始化及乐观版本更新，CredentialVersionFilter 注销过期凭据版本的会话。
 
 `api/ApiResponses` 统一构造成功、创建、空响应与二进制响应；`PageResponse` 定义分页契约；`ApiErrors` 统一处理业务异常、参数绑定、媒体类型、数据库冲突与未预期异常。安全过滤器使用相同 `ApiErrorResponse`。`RequestIdFilter` 为请求生成 `X-Request-Id`，错误体和服务日志使用该 ID。未预期异常返回通用 500 信息，详细异常留在日志。框架配置在 `config/`。
 
@@ -27,3 +27,9 @@ Spring Boot 启动类在根包 `space.raychi.wellspring`。通用内容/认证/�
 | `service/` 与 `mapper/` | ContentExport/History/Trash、RelatedArticles 和 AssetCleanupWorker 复用内容事务、公开快照、修订与删除队列，不另建内容权威 |
 
 既有 LayeringTest 检查 Controller/Service 后缀及 mapper/entity/dto 的部分依赖规则；SearchState 自有 JdbcTemplate 状态持久化，不属于该后缀检查。不能将测试通过解读为所有文件都完全遵循统一目录分层，也不在本次文档整理中改变这项实现。
+
+## PostgreSQL 支持
+
+默认数据库为 PostgreSQL 17，`config/DatabaseConfiguration` 按 JDBC 元数据选择 Flyway 目录；原 MySQL 路径保留已有部署的校验和与回退能力。`ArticleMapper` 的标签包含查询适配数据库方言；其余业务继续复用原 Mapper/事务。PostgreSQL 文本比较保留原大小写/重音不敏感语义，标签表及公开标签索引明确使用大小写敏感比较；时间列存 `TIMESTAMP(6) WITH TIME ZONE`，应用沿用 Instant。
+
+`tools/DatabaseTransfer` 是一次性离线迁移入口，不启动应用、HTTP 或后台任务；只读 MySQL V14，拒绝已有表的 PostgreSQL 复制目标，在单个目标事务中复制并逐表核对所有字段。详细操作归 [数据库迁移](database-migration.md)。测试可用独立 `_test` PostgreSQL 库运行现有 Spring 应用用例，每个上下文隔离 schema，连接池上限 3；MySQL/H2 兼容与真实跨库迁移单独验证。

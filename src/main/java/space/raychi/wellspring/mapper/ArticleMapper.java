@@ -15,11 +15,15 @@ import space.raychi.wellspring.entity.ArticleEntity;
 @Repository
 public class ArticleMapper {
     private final JdbcTemplate db;
-    private final boolean mysql;
+    private final String tagPredicate;
     public ArticleMapper(JdbcTemplate db) {
         this.db = db;
-        this.mysql = Boolean.TRUE.equals(db.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection ->
-                "MySQL".equals(connection.getMetaData().getDatabaseProductName())));
+        this.tagPredicate = db.execute((org.springframework.jdbc.core.ConnectionCallback<String>) connection ->
+                switch (connection.getMetaData().getDatabaseProductName()) {
+                    case "MySQL" -> " AND JSON_CONTAINS(draft_tags,?)=1";
+                    case "PostgreSQL" -> " AND CAST(draft_tags AS jsonb) @> CAST(? AS jsonb)";
+                    default -> " AND LOCATE(?,draft_tags)>0";
+                });
     }
 
     private record Filter(String where, List<Object> args) {}
@@ -46,7 +50,7 @@ public class ArticleMapper {
             base.args().add(category);
         }
         if (tag != null && !tag.isBlank()) {
-            where += mysql ? " AND JSON_CONTAINS(draft_tags,?)=1" : " AND LOCATE(?,draft_tags)>0";
+            where += tagPredicate;
             try { base.args().add(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(tag)); }
             catch (com.fasterxml.jackson.core.JsonProcessingException ex) { throw new IllegalArgumentException(ex); }
         }

@@ -1,19 +1,18 @@
 services:
-  mysql:
-    image: mysql:8.4
+  postgres:
+    image: postgres:17-alpine
     environment:
-      MYSQL_DATABASE: raychi
-      MYSQL_USER: raychi
-      MYSQL_PASSWORD: ${RAYCHI_DB_PASSWORD:?Set RAYCHI_DB_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${RAYCHI_DB_ROOT_PASSWORD:?Set RAYCHI_DB_ROOT_PASSWORD}
+      POSTGRES_DB: raychi
+      POSTGRES_USER: raychi
+      POSTGRES_PASSWORD: ${RAYCHI_DB_PASSWORD:?Set RAYCHI_DB_PASSWORD}
     ports:
-      - "127.0.0.1:3307:3306"
+      - "127.0.0.1:5433:5432"
     volumes:
-      - raychi-mysql:/var/lib/mysql
+      - raychi-postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u raychi -p$$MYSQL_PASSWORD"]
+      test: ["CMD-SHELL", "pg_isready -U raychi -d raychi"]
       interval: 5s
       timeout: 3s
       retries: 20
 volumes:
-  raychi-mysql:
+  raychi-postgres:
