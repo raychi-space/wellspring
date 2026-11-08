@@ -21,8 +21,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.LinkedMultiValueMap;
 import space.raychi.wellspring.api.ApiException;
-import space.raychi.wellspring.service.ArticleService;
 
 @Service
 public class AnalyticsService {
@@ -40,7 +40,6 @@ public class AnalyticsService {
     }
     private final AnalyticsClient client;
     private final AnalyticsSettingsService settings;
-    private final ArticleService articles;
     private final String origin;
     private final AtomicLong delivered = new AtomicLong(), dropped = new AtomicLong();
     private final ThreadPoolExecutor worker = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS,
@@ -48,9 +47,9 @@ public class AnalyticsService {
                 Thread thread = new Thread(task, "analytics-collector"); thread.setDaemon(true); return thread;
             });
 
-    public AnalyticsService(AnalyticsClient client, ArticleService articles, AnalyticsSettingsService settings,
-            @Value("${raychi.analytics.origin:http://127.0.0.1:3000}") String origin) {
-        this.client = client; this.articles = articles; this.settings = settings; this.origin = origin;
+    public AnalyticsService(AnalyticsClient client, AnalyticsSettingsService settings,
+            @Value("${raychi.analytics.origin}") String origin) {
+        this.client = client; this.settings = settings; this.origin = origin;
         URI uri = URI.create(origin);
         if (!Set.of("http", "https").contains(uri.getScheme()) || uri.getHost() == null
                 || uri.getUserInfo() != null || uri.getQuery() != null || uri.getFragment() != null
@@ -58,6 +57,9 @@ public class AnalyticsService {
     }
 
     public String collect(JsonNode input, String requestOrigin, String userAgent, boolean excluded, SessionBudget budget) {
+        return collect(input, requestOrigin, userAgent, excluded, budget, null);
+    }
+    public String collect(JsonNode input, String requestOrigin, String userAgent, boolean excluded, SessionBudget budget, String clientIp) {
         if (!origin.equals(requestOrigin)) throw new ApiException(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "请求来源无效。");
         if (excluded || userAgent == null || userAgent.isBlank()
                 || userAgent.toLowerCase(Locale.ROOT).matches(".*(bot|crawl|spider|slurp|headless|preview).*")) return null;
@@ -67,8 +69,8 @@ public class AnalyticsService {
         var names = input.fieldNames();
         while (names.hasNext()) if (!Set.of("id", "path", "occurredAt", "visitorId", "source").contains(names.next())) throw bad();
         uuid(text(input, "id", 36, true));
-        String path = text(input, "path", 160, true);
-        path(path, true);
+        String path = text(input, "path", 512, true);
+        publicPath(path);
         String occurred = text(input, "occurredAt", 40, true);
         try {
             if (!occurred.matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?Z")) throw bad();
@@ -80,6 +82,11 @@ public class AnalyticsService {
         String source = text(input, "source", 253, false);
         if (source != null) source(source);
         ObjectNode event = ((ObjectNode) input).deepCopy(); event.put("type", "page_view");
+        // The ingress proxy overwrites forwarding headers. Never accept an IP in the browser payload.
+        if (literalIp(clientIp)) {
+            try { event.put("ip", java.net.InetAddress.getByName(clientIp).getHostAddress()); }
+            catch (java.net.UnknownHostException ignored) { /* Missing identity must not prevent PV. */ }
+        }
         try {
             worker.execute(() -> {
                 boolean success = false;
@@ -100,20 +107,30 @@ public class AnalyticsService {
     private static void uuid(String value) {
         if (!value.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")) throw bad();
     }
+    private static boolean literalIp(String value) {
+        return value != null && value.length() <= 45 && (value.contains(":") ? value.matches("[0-9a-fA-F:.]+") : value.matches("\\d{1,3}(?:\\.\\d{1,3}){3}"));
+    }
     private static void source(String value) {
         if (value == null || !value.matches("(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?")) throw bad();
         // Hostnames only; numeric IP literals are never accepted as source identity.
         if (value.matches("[0-9.]+")) throw bad();
     }
-    private void path(String value, boolean published) {
+    /** v1 retains its historical path filter; v2 uses the full public-path validator. */
+    private static void legacyPath(String value) {
         if (value == null) throw bad();
         if (Set.of("/", "/writing", "/posts", "/archive", "/more").contains(value)) return;
         if (!value.matches("/(writing|posts)/[a-z0-9]+(?:-[a-z0-9]+)*") || value.length() > 160) throw bad();
-        if (published) {
-            String[] parts = value.split("/");
-            try { articles.getPublic(parts[1].equals("writing") ? "ARTICLE" : "POST", parts[2]); }
-            catch (ApiException ex) { throw bad(); }
-        }
+    }
+    private void publicPath(String value) {
+        try {
+            if (value == null || value.length() > 512 || !value.startsWith("/") || value.startsWith("//")
+                    || value.matches(".*[?#\\x00-\\x20\\\\].*")) throw bad();
+            URI uri = URI.create(value);
+            String decoded = uri.getPath();
+            if (decoded == null || decoded.contains("..") || decoded.matches(".*[\\x00-\\x20\\\\].*")) throw bad();
+            for (String prefix : new String[]{"/studio", "/api", "/_next", "/.well-known"})
+                if (decoded.equals(prefix) || decoded.startsWith(prefix + "/")) throw bad();
+        } catch (IllegalArgumentException ex) { throw bad(); }
     }
 
     public Map<String, Object> status() {
@@ -124,19 +141,56 @@ public class AnalyticsService {
         for (String key : input.keySet())
             if (!Set.of("from", "to", "path", "source").contains(key) || input.get(key).size() != 1) throw bad();
         String from = input.getFirst("from"), to = input.getFirst("to");
+        validateRange(from, to);
+        if (input.containsKey("path")) legacyPath(input.getFirst("path"));
+        if (input.containsKey("source") && !"direct_or_unknown".equals(input.getFirst("source"))) source(input.getFirst("source"));
+        if (!client.enabled) throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "ANALYTICS_DISABLED", "访问统计尚未启用。");
+        String query = encodeQuery(input);
+        try { return client.report(query, from, to); }
+        catch (IllegalStateException ex) { throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "ANALYTICS_UNAVAILABLE", "访问统计暂时不可用，请稍后重试。"); }
+    }
+    public JsonNode detailsReport(MultiValueMap<String, String> input, boolean events) {
+        input = new LinkedMultiValueMap<>(input);
+        Set<String> allowed = events ? Set.of("from", "to", "path", "source", "ip", "country", "province", "city", "page", "pageSize")
+                : Set.of("from", "to", "path", "source", "ip", "country", "province", "city");
+        for (String key : input.keySet()) {
+            if (!allowed.contains(key) || input.get(key).size() != 1) throw bad();
+            String value = input.getFirst(key);
+            if (value == null || value.isBlank() || value.length() > 512 || value.matches(".*[\\x00-\\x1f].*")) throw bad();
+        }
+        String from = input.getFirst("from"), to = input.getFirst("to");
+        validateRange(from, to);
+        try {
+            for (String key : new String[]{"page", "pageSize"}) if (input.containsKey(key)) {
+                int value = Integer.parseInt(input.getFirst(key));
+                if (value < 1 || value > (key.equals("page") ? 10000 : 100)) throw bad();
+            }
+        } catch (NumberFormatException ex) { throw bad(); }
+        if (input.containsKey("path")) publicPath(input.getFirst("path"));
+        if (input.containsKey("ip")) {
+            String ip = input.getFirst("ip");
+            if (!literalIp(ip)) throw bad();
+            try { input.set("ip", java.net.InetAddress.getByName(ip).getHostAddress()); } catch (java.net.UnknownHostException ex) { throw bad(); }
+        }
+        if (!client.enabled) throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "ANALYTICS_DISABLED", "访问统计尚未启用。");
+        String query = encodeQuery(input);
+        try { return client.details(query, from, to, events); }
+        catch (IllegalStateException ex) { throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "ANALYTICS_UNAVAILABLE", "访问统计暂时不可用，请稍后重试。"); }
+    }
+    private static void validateRange(String from, String to) {
         try {
             if (from == null || to == null || !from.matches("\\d{4}-\\d{2}-\\d{2}") || !to.matches("\\d{4}-\\d{2}-\\d{2}")) throw bad();
             long days = ChronoUnit.DAYS.between(LocalDate.parse(from), LocalDate.parse(to));
             if (days < 1 || days > 366) throw bad();
         } catch (java.time.DateTimeException ex) { throw bad(); }
-        if (input.containsKey("path")) path(input.getFirst("path"), false);
-        if (input.containsKey("source") && !"direct_or_unknown".equals(input.getFirst("source"))) source(input.getFirst("source"));
-        if (!client.enabled) throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "ANALYTICS_DISABLED", "访问统计尚未启用。");
-        String query = input.entrySet().stream().map(e -> e.getKey() + "=" + URLEncoder.encode(e.getValue().getFirst(), StandardCharsets.UTF_8))
-                .collect(java.util.stream.Collectors.joining("&"));
-        try { return client.report(query, from, to); }
-        catch (IllegalStateException ex) { throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "ANALYTICS_UNAVAILABLE", "访问统计暂时不可用，请稍后重试。"); }
     }
+
+    private static String encodeQuery(MultiValueMap<String, String> input) {
+        return input.entrySet().stream()
+                .map(e -> e.getKey() + "=" + URLEncoder.encode(e.getValue().getFirst(), StandardCharsets.UTF_8))
+                .collect(java.util.stream.Collectors.joining("&"));
+    }
+
     private static ApiException bad() { return new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "统计参数无效。"); }
     @PreDestroy void stop() { worker.shutdownNow(); }
 }
