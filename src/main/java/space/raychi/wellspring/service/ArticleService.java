@@ -329,10 +329,7 @@ public class ArticleService {
         history.baseline(current);
         // Catalog creation and publication share this transaction, including downstream failures.
         for (String name : tags(current.draftTags()).stream().sorted().toList()) {
-            if (!taxonomy.exists(Kind.TAG, name)) {
-                try { taxonomy.insert(Kind.TAG, new TaxonomyEntity(name, now)); }
-                catch (DuplicateKeyException alreadyCreated) { /* Concurrent publisher reused this name. */ }
-            }
+            taxonomy.insertIfAbsent(Kind.TAG, new TaxonomyEntity(name, now));
         }
         articles.publish(id, displayType(current.type()), displayCategory(current.type(), current.draftCategory()), now);
         articles.replacePublishedTags(id, tags(current.draftTags()));

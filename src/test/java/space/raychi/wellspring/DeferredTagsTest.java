@@ -24,6 +24,19 @@ import space.raychi.wellspring.search.SearchState;
     "raychi.admin.password-hash=$2a$10$fixtureFixtureFixtureFixtureFixtureFixtureFixtureFixture"
 })
 class DeferredTagsTest {
+    @Autowired space.raychi.wellspring.mapper.TaxonomyMapper catalog;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate db;
+
+    @Test
+    @org.springframework.transaction.annotation.Transactional
+    void duplicatePublicationTagDoesNotAbortTheRestOfTheTransaction() {
+        String name = "shared-" + UUID.randomUUID().toString().substring(0, 8);
+        var tag = new space.raychi.wellspring.entity.TaxonomyEntity(name, java.time.Instant.now());
+        catalog.insertIfAbsent(space.raychi.wellspring.mapper.TaxonomyMapper.Kind.TAG, tag);
+        catalog.insertIfAbsent(space.raychi.wellspring.mapper.TaxonomyMapper.Kind.TAG, tag);
+        db.update("UPDATE site_settings SET version=version+1 WHERE id=1");
+        assertThat(db.queryForObject("SELECT count(*) FROM tags WHERE name=?", Long.class, name)).isEqualTo(1);
+    }
     @org.springframework.test.context.DynamicPropertySource
     static void credentials(org.springframework.test.context.DynamicPropertyRegistry registry) {
         registry.add("raychi.admin.password-hash", () -> new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("test-password"));
