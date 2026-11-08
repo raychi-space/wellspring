@@ -40,7 +40,7 @@ public class AnalyticsController {
         var origins = java.util.Collections.list(request.getHeaders("Origin"));
         String result = analytics.collect(input, origins.size() == 1 ? origins.getFirst() : null,
                 String.join(",", java.util.Collections.list(request.getHeaders("User-Agent"))),
-                request.getUserPrincipal() != null || "1".equals(request.getHeader("DNT")) || "1".equals(request.getHeader("Sec-GPC")), budget);
+                request.getUserPrincipal() != null || "1".equals(request.getHeader("DNT")) || "1".equals(request.getHeader("Sec-GPC")), budget, request.getRemoteAddr());
         return result == null ? ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build()
                 : ResponseEntity.accepted().cacheControl(CacheControl.noStore()).body(Map.of("status", result));
     }
@@ -51,5 +51,15 @@ public class AnalyticsController {
     @GetMapping("/api/v1/admin/analytics/report")
     public ResponseEntity<JsonNode> report(@RequestParam MultiValueMap<String, String> input) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(analytics.report(input));
+    }
+    @GetMapping("/api/v1/admin/analytics/overview")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<JsonNode> overview(@RequestParam MultiValueMap<String, String> input) {
+        return ApiResponses.okNoStore(analytics.detailsReport(input, false));
+    }
+    @GetMapping("/api/v1/admin/analytics/events")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<JsonNode> events(@RequestParam MultiValueMap<String, String> input) {
+        return ApiResponses.okNoStore(analytics.detailsReport(input, true));
     }
 }

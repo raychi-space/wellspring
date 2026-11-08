@@ -3,7 +3,7 @@
   "info": {
     "title": "Raychi content and site API",
     "version": "0.3.0",
-    "description": "v0.2 extends v0.1 without removing legacy article endpoints. Search v1 extensions: docs/api/search-v1.md. Writing assistant v1: docs/api/writing-agent-v1.md. Site analytics v1: docs/api/analytics-v1.md. Related articles v1: docs/api/related-articles-v1.md. Reading shelf v1: docs/api/reading-v1.md."
+    "description": "v0.2 extends v0.1 without removing legacy article endpoints. Search v1 extensions: docs/api/search-v1.md. Writing assistant v1: docs/api/writing-agent-v1.md. Site analytics v1: docs/api/analytics-v1.md. Related articles v1: docs/api/related-articles-v1.md. Reading shelf v1: docs/api/reading-v1.md. Full-page IP analytics v2: docs/api/analytics-v2.md."
   },
   "servers": [
     {
@@ -11,6 +11,298 @@
     }
   ],
   "paths": {
+    "/admin/analytics/events": {
+      "get": {
+        "summary": "ADMIN session only; v2 analytics IP details",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "ip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "province",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1,
+              "maximum": 10000
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsDetailsPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See analytics-v2.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See analytics-v2.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See analytics-v2.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See analytics-v2.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/analytics/overview": {
+      "get": {
+        "summary": "ADMIN session only; v2 analytics overview",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "ip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "province",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See analytics-v2.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See analytics-v2.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See analytics-v2.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See analytics-v2.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/ai/providers": {
       "get": {
         "summary": "ADMIN; list providers",
@@ -4574,6 +4866,284 @@
       }
     },
     "schemas": {
+      "AnalyticsSummaryV2": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pageViews",
+          "visitors",
+          "todayPageViews",
+          "todayVisitors"
+        ],
+        "properties": {
+          "pageViews": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "visitors": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "todayPageViews": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "todayVisitors": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "AnalyticsRetentionV2": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rawDays",
+          "aggregateDays",
+          "timeZone",
+          "geoConfigured",
+          "visitorTrackingSince"
+        ],
+        "properties": {
+          "rawDays": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "aggregateDays": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "timeZone": {
+            "type": "string",
+            "const": "Asia/Shanghai"
+          },
+          "geoConfigured": {
+            "type": "boolean"
+          },
+          "visitorTrackingSince": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AnalyticsDimensionV2": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "pageViews"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "pageViews": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "AnalyticsTrendV2": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "day",
+          "pageViews"
+        ],
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date"
+          },
+          "pageViews": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "AnalyticsDetailV2": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "occurredAt",
+          "path",
+          "source",
+          "ip",
+          "country",
+          "province",
+          "city"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "path": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "ip": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 45
+          },
+          "country": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "province": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 512
+          }
+        }
+      },
+      "AnalyticsOverview": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "appId",
+          "from",
+          "to",
+          "summary",
+          "trend",
+          "countries",
+          "provinces",
+          "cities",
+          "sources",
+          "popularPaths",
+          "retention"
+        ],
+        "properties": {
+          "appId": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/AnalyticsSummaryV2"
+          },
+          "trend": {
+            "type": "array",
+            "maxItems": 366,
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsTrendV2"
+            }
+          },
+          "countries": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsDimensionV2"
+            }
+          },
+          "provinces": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsDimensionV2"
+            }
+          },
+          "cities": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsDimensionV2"
+            }
+          },
+          "sources": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsDimensionV2"
+            }
+          },
+          "popularPaths": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsDimensionV2"
+            }
+          },
+          "retention": {
+            "$ref": "#/components/schemas/AnalyticsRetentionV2"
+          }
+        }
+      },
+      "AnalyticsDetailsPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "appId",
+          "from",
+          "to",
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "retention"
+        ],
+        "properties": {
+          "appId": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsDetailV2"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "retention": {
+            "$ref": "#/components/schemas/AnalyticsRetentionV2"
+          }
+        }
+      },
       "AIProvider": {
         "type": "object",
         "properties": {
@@ -6388,7 +6958,8 @@
           },
           "path": {
             "type": "string",
-            "maxLength": 160
+            "maxLength": 512,
+            "description": "Public pathname including reading, search and 404; no query/fragment or API/studio/static prefixes. See analytics-v2.md."
           },
           "occurredAt": {
             "type": "string",
