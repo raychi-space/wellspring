@@ -6,22 +6,22 @@
 
 新系统文档由 [raychi#67](https://github.com/raychi-space/raychi/pull/67) 提供；该 PR 未合并时，上述 main 新路径尚不可用，可从[文档地图审阅版](https://github.com/raychi-space/raychi/blob/1b6cb94c68e00d7f375edec17ef9822fba5d1778/docs/README.md)进入架构、产品和流程。私有仓仍需访问权限。
 
-**Part of Raychi · 内容服务**。Spring Boot 3.5 + Java 21 + MySQL，提供站长会话、文章工作稿与发布快照、图片上传和授权读取。访客页面在 [lantern](https://github.com/raychi-space/lantern)，管理界面在 [inkwell](https://github.com/raychi-space/inkwell)。Hugo 是待替换的旧博客处理方式，不是运行依赖。
+**Part of Raychi · 内容服务**。Spring Boot 3.5 + Java 21 + PostgreSQL 17，提供站长会话、文章工作稿与发布快照、图片上传和授权读取。访客页面在 [lantern](https://github.com/raychi-space/lantern)，管理界面在 [inkwell](https://github.com/raychi-space/inkwell)。Hugo 是待替换的旧博客处理方式，不是运行依赖。
 
 ## 本机运行
 
-需要 Java 21、Maven 3.9+、Docker Compose。首次启动先复制并填写环境变量；数据库密码和站长 BCrypt 初始化哈希不要提交进 Git。管理员凭据由 V10 持久化到 MySQL；已有账号时初始化变量不会覆盖密码。
+需要 Java 21、Maven 3.9+、Docker Compose。首次启动先复制并填写环境变量；数据库密码和站长 BCrypt 初始化哈希不要提交进 Git。管理员凭据由 数据库持久化；已有账号时初始化变量不会覆盖密码。
 
 ```bash
 cp .env.example .env
 htpasswd -nBC 12 admin | cut -d: -f2-
 # 按提示输入密码，将所得哈希写入 .env 中单引号包裹的 RAYCHI_ADMIN_PASSWORD_HASH，并设置 RAYCHI_ADMIN_USER
-docker compose up -d --wait mysql
+docker compose up -d --wait postgres
 set -a; source .env; set +a
 mvn spring-boot:run
 ```
 
-默认 API 在 <http://127.0.0.1:8080>，MySQL 映射到本机 `3307`。`RAYCHI_ASSET_DIR` 指向私有附件目录（默认 `./data/assets`），必须与数据库一同备份。数据库由 Flyway 自动迁移。执行 `mvn test` 跑测试，`mvn package` 构建应用。
+默认 API 在 <http://127.0.0.1:8080>，PostgreSQL 映射到本机 `5433`。`RAYCHI_ASSET_DIR` 指向私有附件目录（默认 `./data/assets`），必须与数据库一同备份。数据库由 Flyway 自动迁移。执行 `mvn test` 跑测试，`mvn package` 构建应用。
 
 接口说明见[内容与站点契约 v0.2](docs/api/contract-v0.2.md)、[兼容的文章契约 v0.1](docs/api/contract-v0.1.md)与[图片授权规则](docs/api/assets-v0.1.md)。内容和图片的匿名可见性以当前发布快照为准；管理端通过同源会话 Cookie 与 CSRF 访问。上线时启用安全 Cookie，反向代理同源 `/api`，再单独评估部署资源与备份恢复。
 
@@ -61,7 +61,7 @@ mvn spring-boot:run
 
 ## 修改管理员密码
 
-管理台账户菜单提供修改密码入口，校验旧密码，成功后需在所有设备重新登录。接口与持久化/错误行为见 [v0.2 契约](docs/api/contract-v0.2.md#管理员修改密码)。环境哈希只用于首次初始化，不用于重置已有账号；备份需包含 MySQL 账号表。
+管理台账户菜单提供修改密码入口，校验旧密码，成功后需在所有设备重新登录。接口与持久化/错误行为见 [v0.2 契约](docs/api/contract-v0.2.md#管理员修改密码)。环境哈希只用于首次初始化，不用于重置已有账号；备份需包含 数据库账号表。
 
 ## 访问统计
 
@@ -86,3 +86,9 @@ V11记录每篇最近100条工作稿修订，创建/保存/发布/撤回/成功�
 `/api/v1/public/reading` 提供最近 90 天的博客链接合集；管理接口维护来源、排序、启停、手动检查和翻译助手绑定。后台默认每 4 小时检查一次，只保存标题、链接与发布日期，不保存正文、摘要或外部图片。中文译题通过可替换的 `TranslationService` 调用 agent-core 通用翻译助手，原标题始终保留。接口与配置见[拾阅 API v1](docs/api/reading-v1.md)。
 
 [回收站](docs/api/content-trash-v1.md)：管理员移入/恢复为草稿及明确永久删除；TRASHED不进入普通列表/编辑/导出/历史，正文和图片恢复前均不公开。旧硬删除API兼容保留，无自动清空。V12与修订表/附件目录一起备份。
+
+## PostgreSQL 与已有 MySQL 数据
+
+新环境默认 PostgreSQL 17；驱动根据 JDBC URL 选择，Flyway 根据数据库类型选择 `db/postgresql` 或原 `db/migration`。PostgreSQL V1 对应 MySQL V14 的完整状态，原 MySQL 历史文件及校验和不修改。现有本机 MySQL 环境仍可显式配置原 `RAYCHI_DB_URL`；不要用新版 Compose 操作旧数据库卷。
+
+迁移、字段校验、失败边界及测试命令见 [数据库迁移](docs/database-migration.md)。站点 HTTP 契约、内容 UUID、公开地址和权限保持原行为；搜索、Agent、统计继续保有各自 SQLite。数据库迁移不迁移这些内核，也不改变 Agent 加密主密钥。

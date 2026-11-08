@@ -9,7 +9,7 @@ server:
         secure: ${RAYCHI_COOKIE_SECURE:false}
 spring:
   datasource:
-    url: ${RAYCHI_DB_URL:jdbc:mysql://localhost:3307/raychi?connectionTimeZone=UTC}
+    url: ${RAYCHI_DB_URL:jdbc:postgresql://localhost:5433/raychi}
     username: ${RAYCHI_DB_USER:raychi}
     password: ${RAYCHI_DB_PASSWORD:}
   flyway:

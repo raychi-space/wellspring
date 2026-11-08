@@ -5,17 +5,29 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        database: [postgresql, mysql]
     services:
       mysql:
         image: mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: migration-test-root
           MYSQL_DATABASE: raychi_case_tags
-        ports:
-          - 3306:3306
+        ports: [3306:3306]
         options: >-
           --health-cmd="mysqladmin ping -h localhost -uroot -pmigration-test-root"
-          --health-interval=5s --health-timeout=3s --health-retries=20
+          --health-interval=5s --health-timeout=3s --health-retries=30
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: raychi
+          POSTGRES_PASSWORD: migration-test-pg
+          POSTGRES_DB: raychi_test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd="pg_isready -U raychi -d raychi_test"
+          --health-interval=5s --health-timeout=3s --health-retries=30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -23,10 +35,16 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - run: mysql -h 127.0.0.1 -uroot -pmigration-test-root -e 'CREATE DATABASE raychi_publication'
-      - run: mvn -B test
+      - run: mysql -h 127.0.0.1 -uroot -pmigration-test-root -e 'CREATE DATABASE raychi_publication; CREATE DATABASE raychi_migration_test;'
+      - run: mvn -B verify
         env:
-          RAYCHI_TEST_MYSQL_URL: jdbc:mysql://127.0.0.1:3306/raychi_case_tags?connectionTimeZone=UTC
+          RAYCHI_TEST_MYSQL_URL: ${{ matrix.database == 'mysql' && 'jdbc:mysql://127.0.0.1:3306/raychi_case_tags?connectionTimeZone=UTC' || '' }}
           RAYCHI_TEST_MYSQL_USER: root
           RAYCHI_TEST_MYSQL_PASSWORD: migration-test-root
-          RAYCHI_TEST_PUBLICATION_MYSQL_URL: jdbc:mysql://127.0.0.1:3306/raychi_publication?connectionTimeZone=UTC
+          RAYCHI_TEST_PUBLICATION_MYSQL_URL: ${{ matrix.database == 'mysql' && 'jdbc:mysql://127.0.0.1:3306/raychi_publication?connectionTimeZone=UTC' || '' }}
+          RAYCHI_TEST_POSTGRES_URL: ${{ matrix.database == 'postgresql' && 'jdbc:postgresql://127.0.0.1:5432/raychi_test' || '' }}
+          RAYCHI_TEST_POSTGRES_USER: raychi
+          RAYCHI_TEST_POSTGRES_PASSWORD: migration-test-pg
+          RAYCHI_MIGRATION_TEST_MYSQL_URL: ${{ matrix.database == 'postgresql' && 'jdbc:mysql://127.0.0.1:3306/raychi_migration_test?connectionTimeZone=UTC' || '' }}
+          RAYCHI_MIGRATION_TEST_MYSQL_USER: root
+          RAYCHI_MIGRATION_TEST_MYSQL_PASSWORD: migration-test-root
