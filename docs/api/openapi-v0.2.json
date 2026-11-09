@@ -2897,6 +2897,114 @@
         }
       }
     },
+    "/public/reading/discovery": {
+      "get": {
+        "operationId": "readingDiscovery",
+        "responses": {
+          "200": {
+            "description": "Enabled sources and recent article links",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryPage"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          },
+          "400": {
+            "description": "Invalid or expired query/cursor"
+          }
+        },
+        "summary": "Read normalized AIHOT discovery content",
+        "parameters": [
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hot",
+                "latest",
+                "reports"
+              ],
+              "default": "hot"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "daily",
+                "weekly",
+                "monthly"
+              ],
+              "default": "daily"
+            }
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 12,
+              "default": "latest"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 4096
+            }
+          }
+        ],
+        "description": "Only view for hot; view/cursor for latest; view/period/key for reports. Unknown or invalid parameters return 400. No-store. Empty upstream report is report:null. AIHOT errors return available:false, or stale:true with a cached result up to 15 minutes. Model keys and upstream-only links/fields are never returned."
+      }
+    },
+    "/admin/reading/integration": {
+      "get": {
+        "operationId": "readingIntegration",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reading settings and source status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingIntegration"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "summary": "Read AIHOT connection and content timestamps"
+      }
+    },
     "/admin/reading": {
       "get": {
         "operationId": "getAdminReadingShelf",
@@ -6782,6 +6890,290 @@
           "siteUrl": { "type": "string", "format": "uri" },
           "articles": { "type": "array", "items": { "$ref": "#/components/schemas/ReadingPublicArticle" } }
         }
+      },
+      "DiscoverySource": {
+        "type": "object",
+        "required": [
+          "name",
+          "title",
+          "url"
+        ],
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DiscoveryEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "publishedAt",
+          "sourceCount",
+          "sources"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "publishedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sourceCount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiscoverySource"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "DiscoveryIssue": {
+        "type": "object",
+        "required": [
+          "key",
+          "generatedAt"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "generatedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "DiscoverySection": {
+        "type": "object",
+        "required": [
+          "label",
+          "items"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiscoveryEntry"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "DiscoveryReport": {
+        "type": "object",
+        "required": [
+          "key",
+          "title",
+          "intro",
+          "generatedAt",
+          "sections"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "intro": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "generatedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiscoverySection"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "DiscoveryPage": {
+        "type": "object",
+        "required": [
+          "mode",
+          "view",
+          "period",
+          "key",
+          "available",
+          "stale",
+          "updatedAt",
+          "items",
+          "nextCursor",
+          "issues",
+          "report"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "legacy",
+              "aihot"
+            ]
+          },
+          "view": {
+            "type": "string",
+            "enum": [
+              "hot",
+              "latest",
+              "reports"
+            ]
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly"
+            ]
+          },
+          "key": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiscoveryEntry"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiscoveryIssue"
+            }
+          },
+          "report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiscoveryReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReadingIntegration": {
+        "type": "object",
+        "required": [
+          "mode",
+          "configured",
+          "connected",
+          "legacyActive",
+          "checkedAt",
+          "lastSuccessAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "legacy",
+              "aihot"
+            ]
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "legacyActive": {
+            "type": "boolean"
+          },
+          "checkedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastSuccessAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
       },
       "ReadingPublicShelf": {
         "type": "object",

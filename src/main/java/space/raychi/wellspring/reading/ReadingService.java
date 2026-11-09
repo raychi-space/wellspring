@@ -8,6 +8,8 @@ import java.security.MessageDigest;
 import java.time.*;
 import java.util.*;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,9 +21,15 @@ public class ReadingService {
     private final ReadingMapper data;
     private final ReadingSourceClient client;
     private final ReadingSourceParser parser;
+    private final boolean managed;
 
     public ReadingService(ReadingMapper data, ReadingSourceClient client, ReadingSourceParser parser) {
-        this.data = data; this.client = client; this.parser = parser;
+        this(data, client, parser, false);
+    }
+    @Autowired
+    public ReadingService(ReadingMapper data, ReadingSourceClient client, ReadingSourceParser parser,
+            @Value("${raychi.reading.aihot.enabled:false}") boolean managed) {
+        this.data = data; this.client = client; this.parser = parser; this.managed = managed;
     }
 
     @Transactional(readOnly = true)
@@ -46,6 +54,7 @@ public class ReadingService {
 
     @Transactional
     public Settings saveSettings(SettingsInput input) {
+        legacyWrite();
         if (input == null || input.version() < 0 || (input.translationAssistantId() != null
                 && !input.translationAssistantId().isBlank()
                 && !input.translationAssistantId().matches("[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}"))) bad();
@@ -56,6 +65,7 @@ public class ReadingService {
 
     @Transactional
     public AdminSource create(SourceInput input) {
+        legacyWrite();
         SourceInput value = validated(input);
         Instant now = Instant.now();
         Source source = new Source(UUID.randomUUID().toString(), value.name(), value.description(), value.siteUrl(),
@@ -66,21 +76,24 @@ public class ReadingService {
 
     @Transactional
     public AdminSource update(String id, SourceInput input) {
+        legacyWrite();
         SourceInput value = validated(input);
         if (data.updateSource(id(id), value, Instant.now()) != 1) notFound();
         return admin(data.source(id).orElseThrow());
     }
 
     @Transactional
-    public void delete(String id) { if (data.deleteSource(id(id)) != 1) notFound(); }
+    public void delete(String id) { legacyWrite(); if (data.deleteSource(id(id)) != 1) notFound(); }
 
     public AdminSource sync(String id) {
+        legacyWrite();
         Source source = data.source(id(id)).orElseThrow(ReadingService::missing);
         syncSource(source);
         return admin(data.source(id).orElseThrow());
     }
 
     public void syncEnabled() {
+        if (managed) return;
         for (Source source : data.sources(true)) {
             try { syncSource(source); }
             catch (ApiException ignored) { /* Failure is stored per source; continue with the others. */ }
@@ -148,6 +161,10 @@ public class ReadingService {
     private static String sha256(String value) {
         try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8))); }
         catch (Exception ex) { throw new IllegalStateException(ex); }
+    }
+
+    private void legacyWrite() {
+        if (managed) throw new ApiException(HttpStatus.CONFLICT, "READING_MANAGED_EXTERNALLY", "拾阅已切换，原来源设置仅保留用于回退。");
     }
 
     private static void bad() { throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "拾阅来源包含无效字段。"); }

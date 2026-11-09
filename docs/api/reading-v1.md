@@ -24,3 +24,7 @@ Anthropic 工程列表中的文章可能使用同站 `/research/{slug}` 地址�
 后台检查周期由 `RAYCHI_READING_SYNC_MS` 配置，默认 14400000 毫秒（4 小时）。每个来源独立记录最后检查、最后成功和安全错误码；失败保留上次成功结果并在后续周期重试。
 
 新链接立即以原标题进入公开结果。配置翻译 Assistant 后，独立队列通过 `TranslationService` 创建 agent-core 配置化 run，成功后写入中文译题。标题变化会清除旧译题并重新排队；失败按退避时间重试。Assistant ID 由站点设置绑定，不写死在代码中。推荐使用 agent-core 的 `general-translation-zh-cn` 模板注册专用的“通用翻译助手”。
+
+## AIHOT兼容接入
+
+新增公开展示与管理连接状态见[拾阅AIHOT接入](reading-discovery-v1.md)。该功能开启时原抓取/翻译停止，旧写操作返回409，本文的旧只读形状与存量数据保留；未开启时原行为不变。
