@@ -83,7 +83,7 @@ V11记录每篇最近100条工作稿修订，创建/保存/发布/撤回/成功�
 
 ## 拾阅
 
-`/api/v1/public/reading` 提供最近 90 天的博客链接合集；管理接口维护来源、排序、启停、手动检查和翻译助手绑定。后台默认每 4 小时检查一次，只保存标题、链接与发布日期，不保存正文、摘要或外部图片。中文译题通过可替换的 `TranslationService` 调用 agent-core 通用翻译助手，原标题始终保留。接口与配置见[拾阅 API v1](docs/api/reading-v1.md)。
+旧 `/api/v1/public/reading` 及来源管理继续保留兼容。启用 AIHOT 模式后，`/api/v1/public/reading/discovery` 只读转接热榜、最新和日/周/月汇总，旧抓取/翻译 Worker 停止，旧写接口明确拒绝但不删除历史数据；管理端只读取连接与内容时间。接口、配置和回退见[拾阅 AIHOT 接入](docs/api/reading-discovery-v1.md)与[旧拾阅 v1](docs/api/reading-v1.md)。
 
 [回收站](docs/api/content-trash-v1.md)：管理员移入/恢复为草稿及明确永久删除；TRASHED不进入普通列表/编辑/导出/历史，正文和图片恢复前均不公开。旧硬删除API兼容保留，无自动清空。V12与修订表/附件目录一起备份。
 

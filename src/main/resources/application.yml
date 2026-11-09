@@ -32,6 +32,9 @@ raychi:
     url: ${RAYCHI_AGENT_URL:http://127.0.0.1:8092}
     token: ${RAYCHI_AGENT_TOKEN:}
   reading:
+    aihot:
+      enabled: ${RAYCHI_READING_AIHOT_ENABLED:false}
+      url: ${RAYCHI_READING_AIHOT_URL:http://127.0.0.1:18071}
     sync-ms: ${RAYCHI_READING_SYNC_MS:14400000}
     initial-delay-ms: ${RAYCHI_READING_INITIAL_DELAY_MS:15000}
     translation-poll-ms: ${RAYCHI_READING_TRANSLATION_POLL_MS:2000}
