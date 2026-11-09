@@ -4,10 +4,12 @@ import java.time.*;
 import java.util.concurrent.locks.ReentrantLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import space.raychi.wellspring.ai.TranslationService;
 import space.raychi.wellspring.api.ApiException;
 
 @Component
+@ConditionalOnProperty(name = "raychi.reading.aihot.enabled", havingValue = "false", matchIfMissing = true)
 public class ReadingTranslationWorker {
     private final ReadingMapper data;
     private final TranslationService translations;
