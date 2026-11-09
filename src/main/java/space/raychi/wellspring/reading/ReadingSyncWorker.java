@@ -3,8 +3,10 @@ package space.raychi.wellspring.reading;
 import java.util.concurrent.locks.ReentrantLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 @Component
+@ConditionalOnProperty(name = "raychi.reading.aihot.enabled", havingValue = "false", matchIfMissing = true)
 public class ReadingSyncWorker {
     private final ReadingService reading;
     private final ReentrantLock lock = new ReentrantLock();
