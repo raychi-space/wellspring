@@ -2,7 +2,7 @@
 
 所有者：wellspring；核对：2026-10-15。本文描述已提交的模块基线，功能开发分支的扩展另行验证。系统边界见[架构](https://github.com/raychi-space/raychi/blob/main/ARCHITECTURE.md)，本仓契约与代码仍需按任务指定提交核对。
 
-Spring Boot 启动类在根包 `space.raychi.wellspring`。通用内容/认证/附件控制器在 `controller/`；搜索、写作、统计、拾阅分别在 `search/`、`ai/`、`analytics/`、`reading/` 功能包。控制器负责参数绑定、应用服务调用、权限/传输适配和响应，不直接操作内容持久化。`service/` 下的 `ArticleService` 管理内容工作稿、发布快照和版本冲突，`TaxonomyService` 管理分类标签，`AssetService` 管理图片校验、文件存储与可见性，`AuthService` 管理会话，`SiteSettingsService` 管理配置校验、旧字段兼容与乐观锁。拾阅兼容层拥有旧来源、链接元数据、同步调度和翻译队列；AIHOT 模式仅经固定公开 API 读取并映射站点 DTO，通用翻译边界仍在 `ai/TranslationService`。事务边界位于 Service；旧文章端点的类型校验与写入在同一个事务中完成。
+Spring Boot 启动类在根包 `space.raychi.wellspring`。通用内容/认证/附件控制器在 `controller/`；搜索、写作、统计、拾阅分别在 `search/`、`ai/`、`analytics/`、`reading/` 功能包。控制器负责参数绑定、应用服务调用、权限/传输适配和响应，不直接操作内容持久化。`service/` 下的 `ArticleService` 管理内容工作稿、发布快照和版本冲突，`TaxonomyService` 管理分类标签，`AssetService` 管理图片校验、文件存储与可见性，`AuthService` 管理会话，`SiteSettingsService` 管理配置校验、旧字段兼容与乐观锁。拾阅兼容层拥有旧来源、链接元数据、同步调度和翻译队列；AIHOT 公开模式经固定公开 API 读取并映射站点 DTO；管理扩展经独立凭据和固定路径复用上游来源/模型/预算能力，响应使用白名单记录，通用翻译边界仍在 `ai/TranslationService`。事务边界位于 Service；旧文章端点的类型校验与写入在同一个事务中完成。
 
 `mapper/` 下的 Mapper 封装 JdbcTemplate SQL、结果映射及数据库写入结果；`entity/` 保存持久化记录与写入数据，Entity 只在 Mapper 和 Service 之间使用。`dto/` 定义传输模型，公开内容和管理内容使用不同 DTO，Controller 不直接返回数据库记录。Service 完成 Entity → DTO 转换。认证使用 Spring Security；AdminAccountService / AdminAccountMapper 管理单管理员数据库凭据、首次初始化及乐观版本更新，CredentialVersionFilter 注销过期凭据版本的会话。
 
@@ -23,7 +23,7 @@ Spring Boot 启动类在根包 `space.raychi.wellspring`。通用内容/认证/�
 | `ai/` | AgentClient、WritingService 和 WritingStreams 桥接配置、快照建议及受限 SSE；PublicationSummaryWorker 保留旧发布摘要任务。配置/任务/密钥归内核，本文不另定义协议 |
 | `search/` | SearchService 组织查询、批量权威校验和维护；SearchWorker 同步目标、互斥恢复；SearchState 持久最新目标/版本及 CAS 状态 |
 | `analytics/` | Controller/Service/Client 校验同源事件、排队/失败隔离、调用通用内核并提供管理员聚合报表 |
-| `reading/`、`ai/TranslationService` | 旧来源/翻译兼容；AIHOT 固定路径只读客户端、公开 DTO 白名单及有界最近成功缓存；不直连 AIHOT 数据库或保存其正文 |
+| `reading/`、`ai/TranslationService` | 旧来源/翻译兼容；AIHOT 固定路径公开只读客户端与管理服务转接、DTO 白名单及公开最近成功缓存；不直连 AIHOT 数据库或保存其正文 |
 | `service/` 与 `mapper/` | ContentExport/History/Trash、RelatedArticles 和 AssetCleanupWorker 复用内容事务、公开快照、修订与删除队列，不另建内容权威 |
 
 既有 LayeringTest 检查 Controller/Service 后缀及 mapper/entity/dto 的部分依赖规则；SearchState 自有 JdbcTemplate 状态持久化，不属于该后缀检查。不能将测试通过解读为所有文件都完全遵循统一目录分层，也不在本次文档整理中改变这项实现。

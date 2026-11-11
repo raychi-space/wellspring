@@ -96,3 +96,5 @@ V10 增加 MySQL `admin_account` 单管理员记录，存 BCrypt 哈希与递增
 管理员工作稿修订查看与恢复见 [修订历史v1](content-history-v1.md)，不自动公开历史工作稿。
 
 回收站与误删恢复见 [内容回收站v1](content-trash-v1.md)，旧硬删除API保持兼容，管理台采用新流程。
+
+拾阅管理的看板、来源、模型与限额扩展见[拾阅管理 v1](reading-management-v1.md)；公开拾阅及旧来源接口保持兼容。
