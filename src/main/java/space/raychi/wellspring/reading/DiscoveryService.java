@@ -85,6 +85,7 @@ public class DiscoveryService {
         }
         ObjectNode state = json.createObjectNode().put("mode", client.enabled ? "aihot" : "legacy")
                 .put("configured", client.enabled).put("connected", connected).put("legacyActive", !client.enabled);
+        state.put("managementConfigured", client.managementConfigured());
         time(state, "checkedAt", checkedAt); time(state, "lastSuccessAt", successAt); time(state, "updatedAt", updatedAt);
         return state;
     }

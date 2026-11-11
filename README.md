@@ -83,7 +83,7 @@ V11记录每篇最近100条工作稿修订，创建/保存/发布/撤回/成功�
 
 ## 拾阅
 
-旧 `/api/v1/public/reading` 及来源管理继续保留兼容。启用 AIHOT 模式后，`/api/v1/public/reading/discovery` 只读转接热榜、最新和日/周/月汇总，旧抓取/翻译 Worker 停止，旧写接口明确拒绝但不删除历史数据；管理端只读取连接与内容时间。接口、配置和回退见[拾阅 AIHOT 接入](docs/api/reading-discovery-v1.md)与[旧拾阅 v1](docs/api/reading-v1.md)。
+旧 `/api/v1/public/reading` 及来源管理继续保留兼容。启用 AIHOT 模式后，`/api/v1/public/reading/discovery` 只读转接热榜、最新和日/周/月汇总，旧抓取/翻译 Worker 停止，旧写接口明确拒绝但不删除历史数据；管理端通过固定内部凭据转接运行看板、RSS来源及模型/限额配置，权限、口径和兼容顺序见[拾阅管理 v1](docs/api/reading-management-v1.md)。接口、配置和回退见[拾阅 AIHOT 接入](docs/api/reading-discovery-v1.md)与[旧拾阅 v1](docs/api/reading-v1.md)。
 
 [回收站](docs/api/content-trash-v1.md)：管理员移入/恢复为草稿及明确永久删除；TRASHED不进入普通列表/编辑/导出/历史，正文和图片恢复前均不公开。旧硬删除API兼容保留，无自动清空。V12与修订表/附件目录一起备份。
 
