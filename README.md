@@ -89,6 +89,8 @@ V11记录每篇最近100条工作稿修订，创建/保存/发布/撤回/成功�
 
 ## PostgreSQL 与已有 MySQL 数据
 
+历史博客文本使用独立的[离线导入工具](docs/historical-content-import.md)，先隔离预演并备份，按清单保留时间与内容；普通发布API不接受历史时间回写。
+
 新环境默认 PostgreSQL 17；驱动根据 JDBC URL 选择，Flyway 根据数据库类型选择 `db/postgresql` 或原 `db/migration`。PostgreSQL V1 对应 MySQL V14 的完整状态，原 MySQL 历史文件及校验和不修改。现有本机 MySQL 环境仍可显式配置原 `RAYCHI_DB_URL`；旧 `mysql` 服务及数据卷保留在 `legacy-mysql` profile，显式 `docker compose up -d --wait mysql` 可按原私有配置启动；需原 `RAYCHI_DB_ROOT_PASSWORD`。默认启动只启用 PG，不能让新 PG 复用旧 MySQL 卷。
 
 迁移、字段校验、失败边界及测试命令见 [数据库迁移](docs/database-migration.md)。站点 HTTP 契约、内容 UUID、公开地址和权限保持原行为；搜索、Agent、统计继续保有各自 SQLite。数据库迁移不迁移这些内核，也不改变 Agent 加密主密钥。
