@@ -3,7 +3,7 @@
   "info": {
     "title": "Raychi content and site API",
     "version": "0.3.0",
-    "description": "v0.2 extends v0.1 without removing legacy article endpoints. Search v1 extensions: docs/api/search-v1.md. Writing assistant v1: docs/api/writing-agent-v1.md. Site analytics v1: docs/api/analytics-v1.md. Related articles v1: docs/api/related-articles-v1.md. Reading shelf v1: docs/api/reading-v1.md. Full-page IP analytics v2: docs/api/analytics-v2.md."
+    "description": "v0.2 extends v0.1 without removing legacy article endpoints. Search v1 extensions: docs/api/search-v1.md. Writing assistant v1: docs/api/writing-agent-v1.md. Site analytics v1: docs/api/analytics-v1.md. Related articles v1: docs/api/related-articles-v1.md. Reading shelf v1: docs/api/reading-v1.md. Full-page IP analytics v2: docs/api/analytics-v2.md. AIHOT management v1: docs/api/reading-management-v1.md."
   },
   "servers": [
     {
@@ -4851,8 +4851,618 @@
           }
         }
       }
+    },
+    "/admin/reading/aihot/dashboard": {
+      "get": {
+        "operationId": "readingManagementDashboard",
+        "summary": "readingManagementDashboard",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No-store management result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingManagementDashboard"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "failed",
+                "running",
+                "ok",
+                "skipped",
+                "unknown"
+              ],
+              "default": "failed"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "schedule",
+                "collection",
+                "model"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "default": 1
+            }
+          }
+        ]
+      }
+    },
+    "/admin/reading/aihot/sources": {
+      "get": {
+        "operationId": "readingManagementSources",
+        "summary": "readingManagementSources",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No-store management result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingManagementSources"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "enabled",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "health",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ok",
+                "degraded",
+                "failing",
+                "paused",
+                "unknown"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "default": 1
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "readingManagementCreateSource",
+        "summary": "readingManagementCreateSource",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "No-store management result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingManagementSource"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingManagementSourceCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/reading/aihot/sources/{id}": {
+      "get": {
+        "operationId": "readingManagementSource",
+        "summary": "readingManagementSource",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No-store management result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingManagementSource"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]{2,79}$"
+            }
+          }
+        ]
+      },
+      "put": {
+        "operationId": "readingManagementUpdateSource",
+        "summary": "readingManagementUpdateSource",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No-store management result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingManagementSource"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]{2,79}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingManagementSourceUpdate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/reading/aihot/sources/{id}/check": {
+      "post": {
+        "operationId": "readingManagementCheck",
+        "summary": "readingManagementCheck",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No-store management result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingManagementCheck"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]{2,79}$"
+            }
+          }
+        ]
+      }
+    },
+    "/admin/reading/aihot/sources/{id}/collect": {
+      "post": {
+        "operationId": "readingManagementCollect",
+        "summary": "readingManagementCollect",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "No-store management result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingManagementCollection"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]{2,79}$"
+            }
+          }
+        ]
+      }
+    },
+    "/admin/reading/aihot/models": {
+      "get": {
+        "operationId": "readingManagementModels",
+        "summary": "readingManagementModels",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No-store management result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingManagementModels"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/admin/reading/aihot/models/{capability}": {
+      "put": {
+        "operationId": "readingManagementSwitchModel",
+        "summary": "readingManagementSwitchModel",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No-store management result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingManagementModels"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "capability",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingManagementModelInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/reading/aihot/budgets/{service}": {
+      "put": {
+        "operationId": "readingManagementUpdateBudget",
+        "summary": "readingManagementUpdateBudget",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No-store management result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingManagementModels"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "service",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingManagementBudgetInput"
+              }
+            }
+          }
+        }
+      }
     }
-  },
+},
   "components": {
     "securitySchemes": {
       "sessionCookie": {
@@ -7171,8 +7781,12 @@
               "string",
               "null"
             ]
+          },
+          "managementConfigured": {
+            "type": "boolean",
+            "description": "AIHOT mode enabled and an independently configured management credential is present; not a health probe"
           }
-        },
+      },
         "additionalProperties": false
       },
       "ReadingPublicShelf": {
@@ -7866,8 +8480,737 @@
             "format": "int64"
           }
         }
+      },
+      "ReadingManagementProcess": {
+        "type": "object",
+        "required": [
+          "status",
+          "lastSeenAt"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "stale",
+              "unknown"
+            ]
+          },
+          "lastSeenAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ReadingManagementProcesses": {
+        "type": "object",
+        "required": [
+          "api",
+          "worker"
+        ],
+        "properties": {
+          "api": {
+            "$ref": "#/components/schemas/ReadingManagementProcess"
+          },
+          "worker": {
+            "$ref": "#/components/schemas/ReadingManagementProcess"
+          }
+        }
+      },
+      "ReadingManagementHealth": {
+        "type": "object",
+        "required": [
+          "total",
+          "enabled",
+          "healthy",
+          "failing",
+          "degraded"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "enabled": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "healthy": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failing": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "degraded": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ReadingManagementCounts": {
+        "type": "object",
+        "required": [
+          "collectedToday",
+          "pending",
+          "published"
+        ],
+        "properties": {
+          "collectedToday": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pending": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "published": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ReadingManagementTrend": {
+        "type": "object",
+        "required": [
+          "date",
+          "collected",
+          "processed"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "collected": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "processed": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ReadingManagementTask": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "status",
+          "startedAt",
+          "finishedAt",
+          "error"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "schedule",
+              "collection",
+              "model"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "finishedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ReadingManagementTasks": {
+        "type": "object",
+        "required": [
+          "page",
+          "pageSize",
+          "total",
+          "items"
+        ],
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageSize": {
+            "const": 20
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReadingManagementTask"
+            }
+          }
+        }
+      },
+      "ReadingManagementUsage": {
+        "type": "object",
+        "required": [
+          "calls",
+          "ok",
+          "failed",
+          "unknown",
+          "tokensIn",
+          "tokensOut",
+          "p50Ms",
+          "p95Ms"
+        ],
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ok": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unknown": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tokensIn": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tokensOut": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "p50Ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "p95Ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          }
+        }
+      },
+      "ReadingManagementBudget": {
+        "type": "object",
+        "required": [
+          "service",
+          "perMinute",
+          "perHour",
+          "perDay",
+          "usedMinute",
+          "usedHour",
+          "usedDay",
+          "updatedAt"
+        ],
+        "properties": {
+          "service": {
+            "type": "string"
+          },
+          "perMinute": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "perHour": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "perDay": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "usedMinute": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "usedHour": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "usedDay": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "ReadingManagementDashboard": {
+        "type": "object",
+        "required": [
+          "checkedAt",
+          "timeZone",
+          "processes",
+          "sources",
+          "counts",
+          "trend",
+          "tasks",
+          "modelSummary",
+          "budgets"
+        ],
+        "properties": {
+          "checkedAt": {
+            "type": "string"
+          },
+          "timeZone": {
+            "const": "Asia/Shanghai"
+          },
+          "processes": {
+            "$ref": "#/components/schemas/ReadingManagementProcesses"
+          },
+          "sources": {
+            "$ref": "#/components/schemas/ReadingManagementHealth"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/ReadingManagementCounts"
+          },
+          "trend": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReadingManagementTrend"
+            },
+            "minItems": 7,
+            "maxItems": 7
+          },
+          "tasks": {
+            "$ref": "#/components/schemas/ReadingManagementTasks"
+          },
+          "modelSummary": {
+            "$ref": "#/components/schemas/ReadingManagementUsage"
+          },
+          "budgets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReadingManagementBudget"
+            }
+          }
+        }
+      },
+      "ReadingManagementSourceRow": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "enabled",
+          "health",
+          "intervalMinutes",
+          "lastSuccessAt",
+          "lastFetchAt",
+          "nextFetchAt",
+          "lastError"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "health": {
+            "type": "string"
+          },
+          "intervalMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440
+          },
+          "lastSuccessAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastFetchAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nextFetchAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ReadingManagementSource": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "enabled",
+          "health",
+          "intervalMinutes",
+          "lastSuccessAt",
+          "lastFetchAt",
+          "nextFetchAt",
+          "lastError",
+          "feedUrl",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "health": {
+            "type": "string"
+          },
+          "intervalMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440
+          },
+          "lastSuccessAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastFetchAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nextFetchAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "feedUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "version": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ReadingManagementSources": {
+        "type": "object",
+        "required": [
+          "page",
+          "pageSize",
+          "total",
+          "items"
+        ],
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageSize": {
+            "const": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReadingManagementSourceRow"
+            }
+          }
+        }
+      },
+      "ReadingManagementCheck": {
+        "type": "object",
+        "required": [
+          "count",
+          "elapsedMs"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "elapsedMs": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ReadingManagementCollection": {
+        "type": "object",
+        "required": [
+          "jobId"
+        ],
+        "properties": {
+          "jobId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ReadingManagementChoice": {
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "service",
+          "vision"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "vision": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ReadingManagementCapability": {
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "currentKey",
+          "currentLabel",
+          "configured",
+          "usage"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "currentKey": {
+            "type": "string"
+          },
+          "currentLabel": {
+            "type": "string"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/ReadingManagementUsage"
+          }
+        }
+      },
+      "ReadingManagementModels": {
+        "type": "object",
+        "required": [
+          "checkedAt",
+          "metadataAvailable",
+          "metadataAt",
+          "days",
+          "choices",
+          "capabilities",
+          "budgets",
+          "summary"
+        ],
+        "properties": {
+          "checkedAt": {
+            "type": "string"
+          },
+          "metadataAvailable": {
+            "type": "boolean"
+          },
+          "metadataAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "days": {
+            "const": 7
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReadingManagementChoice"
+            }
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReadingManagementCapability"
+            }
+          },
+          "budgets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReadingManagementBudget"
+            }
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ReadingManagementUsage"
+          }
+        }
+      },
+      "ReadingManagementSourceCreate": {
+        "type": "object",
+        "required": [
+          "name",
+          "feedUrl",
+          "intervalMinutes"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "feedUrl": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048,
+            "description": "HTTPS RSS URL; no userinfo/fragment/credential query keys; native SSRF policy applies"
+          },
+          "intervalMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440
+          }
+        }
+      },
+      "ReadingManagementSourceUpdate": {
+        "type": "object",
+        "required": [
+          "name",
+          "feedUrl",
+          "intervalMinutes",
+          "enabled",
+          "version"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "feedUrl": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048,
+            "description": "HTTPS RSS URL; no userinfo/fragment/credential query keys; native SSRF policy applies"
+          },
+          "intervalMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string",
+            "format": "date-time",
+            "maxLength": 40
+          }
+        }
+      },
+      "ReadingManagementModelInput": {
+        "type": "object",
+        "required": [
+          "model"
+        ],
+        "properties": {
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100,
+            "description": "Configured registry key; null restores environment default"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReadingManagementBudgetInput": {
+        "type": "object",
+        "required": [
+          "perMinute",
+          "perHour",
+          "perDay"
+        ],
+        "properties": {
+          "perMinute": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "perHour": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "perDay": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          }
+        }
       }
-    },
+  },
     "headers": {
       "RequestId": {
         "description": "服务端生成的请求 ID；错误响应中与 requestId 一致。",
