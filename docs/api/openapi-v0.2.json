@@ -6310,6 +6310,31 @@
         ],
         "additionalProperties": false
       },
+      "AIInsertionSnapshot": {
+        "type": "object",
+        "properties": {
+          "insertionId": {
+            "type": "string",
+            "maxLength": 80,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}$"
+          },
+          "contextBefore": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "contextAfter": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "insertionId",
+          "contextBefore",
+          "contextAfter"
+        ],
+        "additionalProperties": false,
+        "description": "Opaque client cursor snapshot. Required only for insert; cannot coexist with selection. The browser owns location and validates it again before insertion."
+      },
       "AIWritingTurn": {
         "type": "object",
         "properties": {
@@ -6325,6 +6350,7 @@
             "enum": [
               "chat",
               "rewrite",
+              "insert",
               "summarize",
               "metadata"
             ]
@@ -6379,6 +6405,9 @@
                 "type": "string",
                 "maxLength": 80,
                 "description": "Client snapshot identity enabling optional whole-document edits without a selection."
+              },
+              "insertion": {
+                "$ref": "#/components/schemas/AIInsertionSnapshot"
               }
             },
             "required": [
@@ -6395,7 +6424,8 @@
           "history",
           "context"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "insert requires context.insertion and documentMarkdown, rejects context.selection; other modes reject context.insertion. Existing modes remain compatible."
       },
       "AIWritingProposal": {
         "oneOf": [
@@ -6493,6 +6523,30 @@
                 "maxLength": 100000
               }
             }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "insertion"
+              },
+              "insertionId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "newText": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100000,
+                "description": "Nonblank new Markdown only; never the complete revised document."
+              }
+            },
+            "required": [
+              "kind",
+              "insertionId",
+              "newText"
+            ],
+            "additionalProperties": false
           }
         ]
       },

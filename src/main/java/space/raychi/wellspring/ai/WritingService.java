@@ -59,10 +59,13 @@ public class WritingService {
         assistantId = id(string(request, "assistantId", 80, false));
     String mode = string(request, "mode", 20, false),
         message = string(request, "message", 20000, false);
-    if (!Set.of("chat", "rewrite", "summarize", "metadata").contains(mode))
+    if (!Set.of("chat", "rewrite", "insert", "summarize", "metadata").contains(mode))
       throw AgentClient.error(422, "INVALID_INPUT");
     var context = request.path("context");
-    fields(context, "title", "selection", "documentMarkdown", "currentSummary", "documentId");
+    fields(context, "title", "selection", "insertion", "documentMarkdown", "currentSummary", "documentId");
+    if (context.has("insertion") != mode.equals("insert")
+        || (mode.equals("insert") && context.has("selection")))
+      throw AgentClient.error(422, "INVALID_INPUT");
     String title = string(context, "title", 200, true);
     var messages = json.createArrayNode();
     var history = request.path("history");
@@ -83,6 +86,11 @@ public class WritingService {
           case "rewrite" ->
               "Read read_selection and submit exactly one propose_replacement with its exact"
                   + " selectionId. Only propose a change; do not claim it was applied.";
+          case "insert" ->
+              "Read read_document and read_insertion. Submit exactly one propose_insertion with"
+                  + " the exact insertionId and only the new Markdown to insert at that captured"
+                  + " cursor. Do not repeat, replace or delete existing content. The user must"
+                  + " confirm before insertion; do not claim it was applied.";
           case "metadata" ->
               "Read read_document and submit exactly one propose_metadata. Generate a concise title in the document language, a faithful summary, and translate that title into English as englishTitle. Do not change the document or publish it.";
           case "summarize" ->
@@ -138,6 +146,18 @@ public class WritingService {
     }
     if (mode.equals("rewrite") && selectionId == null)
       throw AgentClient.error(422, "INVALID_INPUT");
+    String insertionId = null;
+    if (context.has("insertion")) {
+      var insertion = context.get("insertion");
+      fields(insertion, "insertionId", "contextBefore", "contextAfter");
+      insertionId = id(string(insertion, "insertionId", 80, false));
+      string(insertion, "contextBefore", 500, true);
+      string(insertion, "contextAfter", 500, true);
+      snapshots.set("insertion", insertion.deepCopy());
+      bindings.add(
+          binding("read_insertion", "snapshot.read", "Read the captured cursor and its surrounding context.")
+              .put("snapshotKey", "insertion"));
+    }
     if (!mode.equals("chat") || selectionId != null || documentId != null) {
       var schema = json.createObjectNode().put("type", "object").put("additionalProperties", false);
       var properties = schema.putObject("properties");
@@ -146,6 +166,10 @@ public class WritingService {
         properties.putObject("summary").put("type", "string").put("minLength", 1).put("maxLength", 600);
         properties.putObject("englishTitle").put("type", "string").put("minLength", 1).put("maxLength", 300);
         schema.putArray("required").add("title").add("summary").add("englishTitle");
+      } else if (mode.equals("insert")) {
+        properties.putObject("insertionId").put("type", "string").put("const", insertionId);
+        properties.putObject("newText").put("type", "string").put("minLength", 1).put("maxLength", 100000);
+        schema.putArray("required").add("insertionId").add("newText");
       } else if (mode.equals("chat") && selectionId == null && documentId != null) {
         properties.putObject("documentId").put("type", "string").put("const", documentId);
         properties.putObject("newText").put("type", "string").put("maxLength", 100000);
@@ -164,7 +188,7 @@ public class WritingService {
       }
       var collector =
           binding(
-              mode.equals("metadata") ? "propose_metadata" : mode.equals("summarize") ? "propose_summary" : selectionId == null ? "propose_document" : "propose_replacement",
+              mode.equals("metadata") ? "propose_metadata" : mode.equals("summarize") ? "propose_summary" : mode.equals("insert") ? "propose_insertion" : selectionId == null ? "propose_document" : "propose_replacement",
               "result.collect",
               "Submit one suggestion for user confirmation.");
       collector.set("schema", schema);
@@ -207,7 +231,17 @@ public class WritingService {
         var proposal = result.path("collected").deepCopy();
         if (!(proposal instanceof ObjectNode object))
           throw AgentClient.error(502, "AGENT_PROTOCOL_ERROR");
-        if (proposal.has("selectionId") && proposal.has("newText"))
+        if (proposal.has("insertionId") && proposal.has("newText")) {
+          // The core validates the tool schema. Also defend this additive result at the boundary.
+          if (!proposal.path("insertionId").isTextual()
+              || !proposal.path("insertionId").asText().matches("[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}")
+              || !proposal.path("newText").isTextual()
+              || proposal.path("newText").asText().isBlank()
+              || proposal.path("newText").asText().length() > 100000
+              || proposal.size() != 2)
+            throw AgentClient.error(502, "AGENT_PROTOCOL_ERROR");
+          object.put("kind", "insertion");
+        } else if (proposal.has("selectionId") && proposal.has("newText"))
           object.put("kind", "replacement");
         else if (proposal.has("documentId") && proposal.has("newText")) object.put("kind", "document");
         else if (proposal.has("englishTitle")) {

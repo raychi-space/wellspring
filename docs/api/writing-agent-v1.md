@@ -16,10 +16,11 @@ POST `turns` 返回202 `{turnId,status}`；GET `turns/{id}` 返回状态、成�
 
 ```ts
 interface TurnRequest {
-  requestId: string; assistantId: string; mode: 'chat'|'rewrite'|'summarize'|'metadata';
+  requestId: string; assistantId: string; mode: 'chat'|'rewrite'|'insert'|'summarize'|'metadata';
   message: string; history: {role:'user'|'assistant';content:string}[];
   context: {title:string; documentId?:string; documentMarkdown?:string; currentSummary?:string;
-    selection?:{selectionId:string;beforeMarkdown:string;contextBefore:string;contextAfter:string}};
+    selection?:{selectionId:string;beforeMarkdown:string;contextBefore:string;contextAfter:string};
+    insertion?:{insertionId:string;contextBefore:string;contextAfter:string}};
 }
 ```
 
@@ -27,7 +28,7 @@ requestId 为80字符内标识符；服务器加站主摘要范围作为底层�
 
 chat 需要 documentMarkdown；read_document、可选 read_selection 只读取本轮快照。有有效selection时额外开放可选propose_replacement（固定selectionId Schema）；默认普通对话，模型仅在当前用户明确要求修改引用选区时才应提出建议，普通问答不要求收集结果。没有选区且提供 documentId 时开放 propose_document，固定快照标识并返回完整修订 Markdown；旧客户端没有 documentId 时仍只读。所有建议仍须本地确认，模型不能直接修改正文。rewrite 必须有 selection，仅 read_selection 与 propose_replacement；结果 Schema 固定 selectionId 与 newText（可空，表示删除）。summarize 是受控生成建议接口；管理台不再在停顿时自动调用。发布摘要由后台任务使用已发布全文与摘要，提供 read_document 和 propose_summary（非空，最多1000）。工具名称、描述、权限与 Schema 由 wellspring 注入，浏览器不得提交绑定或 Schema；内核只执行通用 snapshot.read/result.collect。写作指令作为服务组装内容，用户提示词不能扩大工具授权。
 
-成功 result `{reply,proposal?}`；proposal 为 `{kind:'replacement',selectionId,newText}`、`{kind:'document',documentId,newText}`、`{kind:'summary',summary}` 或发布元数据（见下文）。该 turns 接口不修改正文、摘要或发布状态；独立的发布摘要任务在快照校验后持久化摘要，见内容契约。原文与位置由浏览器的当前编辑器书签验证，模型不提供位置。rewrite/summarize 缺有效收集结果时任务失败。
+成功 result `{reply,proposal?}`；proposal 为 `{kind:'replacement',selectionId,newText}`、`{kind:'document',documentId,newText}`、`{kind:'insertion',insertionId,newText}`、`{kind:'summary',summary}` 或发布元数据（见下文）。该 turns 接口不修改正文、摘要或发布状态；独立的发布摘要任务在快照校验后持久化摘要，见内容契约。原文与位置由浏览器的当前编辑器书签验证，模型不提供位置。rewrite/summarize 缺有效收集结果时任务失败。
 
 GET 根据底层调用者 owner、taskType=configured_run 与站主 origin 校验来源；不新建任务表，不暴露内核输入、配置快照或日志。失败 error `{code,message,retryable}`，仅安全错误码及中文原因，不返回模型错误正文。配置不可用422 CONFIG_UNAVAILABLE、非法输入422 INVALID_INPUT、幂等冲突409、服务未启用/凭据不可用/网络故障503 AGENT_UNAVAILABLE；任务可区分 TIMEOUT、MODEL_FAILED/REJECTED、INVALID_OUTPUT/TOOL_FAILED/FORBIDDEN、资源限制。网络重试复用 requestId；主动重新生成用新 ID。内核手动重试不在本期应用界面开放。
 
@@ -50,3 +51,11 @@ chat 的 context.documentId 标识本轮编辑器快照；不需要选择文字�
 GET turns/{id}/events 返回 text/event-stream，权限及所有者校验与状态查询相同。event: turn 的 JSON 为 {turnId,status,partialReply?,result?,error?}；partialReply 是本次模型调用累计文本，应替换同一气泡而非追加。只有最终 result 中的 proposal 可用于修改，流式文本不能作为工具调用。成功或失败发送终态后关闭；异常以 stream-error 事件结束。断线可使用原 requestId 和任务 ID 重新连接，不会重复创建任务。连接关闭不会取消底层任务，任务仍受助手超时约束。
 
 模型 SSE 由 Agent 解析后公开内存中的 partialReply；Wellspring 每150ms读取任务变化并通过 SSE 转发。工具参数及凭据不作为增量文本公开，任务结束即清理内存中的增量副本。单个进程同时最多8条浏览器流，连接180秒超时；每次任务读取前检查会话是否仍有效及账号凭证版本，退出或其他设备改密后停止转发。发布元数据仍使用完整结构化结果。
+
+## 光标插入建议
+
+`insert` 是显式的“写入光标处”操作，context 必须包含 documentMarkdown 和 insertion；insertionId 是浏览器生成的不透明标识（格式和 requestId 相同，最多80字符），前后文各最多500字符，可空。insertion 只允许出现在 insert 模式，且不能同时提供 selection。服务器只绑定 read_document、read_insertion 与一个 propose_insertion 收集器，固定 insertionId；不开放选区替换或全文替换。现有 chat/rewrite/summarize/metadata 请求保持兼容。
+
+propose_insertion 的 newText 只包含待插入的新 Markdown，非空白、最多100000字符；结果转换为 kind=insertion。insert 必须有有效收集结果才成功。模型只读本轮未保存文档和插入上下文，不提供坐标，也不会保存或发布内容。
+
+管理台在发送时固定光标书签，之后移动光标不改变本轮目标。接受前再次验证目标节点与所在块快照；目标块被改动或编辑器重挂载时建议过期。空段落、空文档及公式前后可作为插入位置，公式内部不支持。用户确认后仅更新当前编辑器，可一次撤销；跨组件缓存不复用光标书签。
