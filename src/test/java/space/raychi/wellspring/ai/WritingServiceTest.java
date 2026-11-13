@@ -13,6 +13,65 @@ class WritingServiceTest {
   private final AgentClient client = mock(AgentClient.class);
   private final WritingService service = new WritingService(client, json);
 
+  @Test
+  void insertionUsesUnsavedSnapshotAndExactlyOneScopedCollector() throws Exception {
+    final String[] origin = {null};
+    when(client.request(eq("POST"), eq("/runs"), any(), any())).thenAnswer(call -> {
+      var run = (com.fasterxml.jackson.databind.JsonNode) call.getArgument(2);
+      origin[0] = run.path("origin").asText();
+      assertThat(run.path("resultRequired").asBoolean()).isTrue();
+      assertThat(run.path("snapshots").path("document").path("documentMarkdown").asText()).isEqualTo("未保存正文");
+      assertThat(run.path("snapshots").path("insertion").path("contextBefore").asText()).isEqualTo("光标之前");
+      var bindings = run.path("bindings");
+      assertThat(bindings.size()).isEqualTo(3);
+      assertThat(bindings.get(0).path("name").asText()).isEqualTo("read_document");
+      assertThat(bindings.get(1).path("name").asText()).isEqualTo("read_insertion");
+      assertThat(bindings.get(1).path("executor").asText()).isEqualTo("snapshot.read");
+      var collector = bindings.get(2);
+      assertThat(collector.path("name").asText()).isEqualTo("propose_insertion");
+      assertThat(collector.path("executor").asText()).isEqualTo("result.collect");
+      assertThat(collector.path("schema").path("properties").path("insertionId").path("const").asText()).isEqualTo("caret-1");
+      assertThat(collector.path("schema").path("properties").path("newText").path("minLength").asInt()).isEqualTo(1);
+      assertThat(collector.path("schema").path("properties").path("newText").path("maxLength").asInt()).isEqualTo(100000);
+      assertThat((String) call.getArgument(3)).startsWith("raychi.writing:").endsWith(":insert-1");
+      return json.createObjectNode().put("id", "task-insert").put("status", "pending");
+    });
+    service.create(json.readTree("""
+      {"requestId":"insert-1","assistantId":"assistant","mode":"insert","message":"写一段","history":[],"context":{"title":"","documentMarkdown":"未保存正文","insertion":{"insertionId":"caret-1","contextBefore":"光标之前","contextAfter":""}}}
+      """), "owner");
+    when(client.request(eq("GET"), eq("/tasks/task-insert"), isNull(), isNull())).thenReturn(json.createObjectNode().put("origin", origin[0]).put("taskType", "configured_run").put("status", "succeeded"));
+    when(client.request(eq("GET"), eq("/tasks/task-insert/result"), isNull(), isNull())).thenReturn(json.readTree("""
+      {"result":{"reply":"已生成建议","collected":{"insertionId":"caret-1","newText":"新增 **内容**"}}}
+      """));
+    var proposal = service.get("task-insert", "owner").path("result").path("proposal");
+    assertThat(proposal.path("kind").asText()).isEqualTo("insertion");
+    assertThat(proposal.path("newText").asText()).isEqualTo("新增 **内容**");
+    when(client.request(eq("GET"), eq("/tasks/task-insert/result"), isNull(), isNull())).thenReturn(json.readTree("""
+      {"result":{"collected":{"insertionId":"caret-1","newText":"  "}}}
+      """));
+    assertThatThrownBy(() -> service.get("task-insert", "owner")).isInstanceOf(ApiException.class);
+  }
+
+  @Test
+  void insertionRejectsMissingMixedAndOutOfModeTargets() throws Exception {
+    var request = (com.fasterxml.jackson.databind.node.ObjectNode) json.readTree("""
+      {"requestId":"insert-1","assistantId":"assistant","mode":"insert","message":"写一段","history":[],"context":{"title":"","documentMarkdown":""}}
+      """);
+    assertThatThrownBy(() -> service.create(request, "owner")).isInstanceOf(ApiException.class);
+    var context = (com.fasterxml.jackson.databind.node.ObjectNode) request.path("context");
+    context.set("insertion", json.readTree("""
+      {"insertionId":"caret-1","contextBefore":"","contextAfter":""}
+      """));
+    context.putObject("selection").put("selectionId", "selection-1");
+    assertThatThrownBy(() -> service.create(request, "owner")).isInstanceOf(ApiException.class);
+    context.remove("selection");
+    request.put("mode", "chat");
+    assertThatThrownBy(() -> service.create(request, "owner")).isInstanceOf(ApiException.class);
+    request.put("mode", "insert");
+    ((com.fasterxml.jackson.databind.node.ObjectNode) context.path("insertion")).put("contextAfter", "x".repeat(501));
+    assertThatThrownBy(() -> service.create(request, "owner")).isInstanceOf(ApiException.class);
+    verifyNoInteractions(client);
+  }
 
   @Test
   void wholeDocumentProposalIsOptionalScopedAndStreamsOwnedText() throws Exception {
