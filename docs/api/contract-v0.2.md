@@ -6,7 +6,7 @@
 
 - 新内容只有 `ARTICLE`（文章）和 `POST`（帖子），对应 `/writing/{slug}`、`/posts/{slug}`；旧文章 `slug` 不变。
 - 新建帖子时服务端生成稳定的随机 UUID slug，标题可空。文章标题必填，首次发布前须填写正式 slug。
-- 文章的 `category` 必须是现有分类；新建时省略或空值归入 `未分类`，保存时省略字段保留现有分类，显式传空字符串归入 `未分类`。帖子 `category` 必须为空。文章和帖子的 `tags` 可为多个已有或尚未建立的标签名称；缺失标签在成功发布事务内建立。分类由站长通过创建接口新增，标签管理接口仍可显式新增；本版不提供更名或删除。
+- 文章的 `category` 必须是现有分类；新建时省略或空值归入 `未分类`，保存时省略字段保留现有分类，显式传空字符串归入 `未分类`。帖子 `category` 必须为空。文章和帖子的 `tags` 可为多个已有或尚未建立的标签名称；缺失标签在成功发布事务内建立。分类由站长通过创建接口新增，标签管理接口仍可显式新增；未引用项的更名/删除及引用保护见 [个人设置与分类标签管理](personal-taxonomy-v1.md)。
 - 帖子的 Markdown 不得包含图片节点或 HTML `<img>`；封面与图片上传只属于文章。文章沿用 v0.1 的图片私密、快照引用和撤回规则。
 - 保存工作稿只更新管理版本与 `updatedAt`，不更新 `publishedAt`、公开快照和公开顺序。首次发布确定 `publishedAt`；再次发布更新 `publicUpdatedAt`，保持 `publishedAt` 与原位置。撤回后公开列表和详情返回 404/不包含，重发保留原地址与首次发布时间。
 
@@ -36,7 +36,7 @@
 
 ## 站点配置
 
-`siteName`、`intro`、可空 `avatarUrl`、`contacts`、`accounts`、`navigation`、`homeSections`、`homepage`、`projectIntro` 和 `socialAccounts` 是一份独立配置。前三种链接列表的元素为 `{label, href}`；链接只允许站内 `/路径`、HTTP(S) 或 `mailto:`。旧版 `homeSections` 固定为 `feed`、`writing`、`posts`、`thoughts` 四个，保留以兼容旧客户端。新首页使用 `homepage`：`focus` 为个人方向，`projects` 为最多三个 `{name, description, status, href}` 项目；`recentSections` 固定包含 `featured`、`posts`、`writing`，`bottomSections` 固定包含 `projects`、`stats`，各区块恰好出现一次，数组顺序决定展示顺序，`visible` 决定是否显示。项目说明由 `projectIntro` 保存。项目链接只允许站内路径或 HTTP(S)。`socialAccounts` 保存最多八个 `{platform, enabled, href}`，平台为 `github`、`x`、`bilibili`、`youtube`、`zhihu`、`juejin`、`xiaohongshu`、`mastodon`；开启的平台须填写 HTTP(S) 链接。旧 `accounts` 中同名平台会在读取时转换为图标账户，保存新配置后写入 `socialAccounts`。旧客户端保存时省略新增字段会保留当前配置。公开导航读取数据库中配置的首页、帖子、文章和回顾标签；V5 把旧默认“长文”改为“文章”。文章、帖子数字仍根据已发布内容自动计算。配置没有工作稿/发布步骤；保存不读取或改动内容工作稿。头像使用站长指定的安全 URL，本版没有头像上传接口。
+`siteName`、`intro`、可空 `avatarUrl`、`contacts`、`accounts`、`navigation`、`homeSections`、`homepage`、`projectIntro` 和 `socialAccounts` 是一份独立配置。前三种链接列表的元素为 `{label, href}`；链接只允许站内 `/路径`、HTTP(S) 或 `mailto:`。旧版 `homeSections` 固定为 `feed`、`writing`、`posts`、`thoughts` 四个，保留以兼容旧客户端。新首页使用 `homepage`：`focus` 为个人方向，`projects` 为最多三个 `{name, description, status, href}` 项目；`recentSections` 固定包含 `featured`、`posts`、`writing`，`bottomSections` 固定包含 `projects`、`stats`，各区块恰好出现一次，数组顺序决定展示顺序，`visible` 决定是否显示。项目说明由 `projectIntro` 保存。项目链接只允许站内路径或 HTTP(S)。`socialAccounts` 保存最多八个 `{platform, enabled, href}`，平台为 `github`、`x`、`bilibili`、`youtube`、`zhihu`、`juejin`、`xiaohongshu`、`mastodon`；开启的平台须填写 HTTP(S) 链接。旧 `accounts` 中同名平台会在读取时转换为图标账户，保存新配置后写入 `socialAccounts`。旧客户端保存时省略新增字段会保留当前配置。公开导航读取数据库中配置的首页、帖子、文章和回顾标签；V5 把旧默认“长文”改为“文章”。文章、帖子数字仍根据已发布内容自动计算。配置没有工作稿/发布步骤；保存不读取或改动内容工作稿。头像兼容站长指定的安全 URL；个人设置支持预览后上传保存，见 [个人设置](personal-taxonomy-v1.md)。
 
 ## 数据迁移和兼容
 
@@ -98,3 +98,5 @@ V10 增加 MySQL `admin_account` 单管理员记录，存 BCrypt 哈希与递增
 回收站与误删恢复见 [内容回收站v1](content-trash-v1.md)，旧硬删除API保持兼容，管理台采用新流程。
 
 拾阅管理的看板、来源、模型与限额扩展见[拾阅管理 v1](reading-management-v1.md)；公开拾阅及旧来源接口保持兼容。
+
+个人设置扩展实际登录用户名修改、共享头像上传与分类标签管理，兼容和错误语义见 [个人设置与分类标签管理 v1](personal-taxonomy-v1.md)。

@@ -1,5 +1,6 @@
 package space.raychi.wellspring.service;
 
+import space.raychi.wellspring.dto.ChangeUsernameRequest;
 import java.nio.charset.StandardCharsets;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -35,6 +36,26 @@ public class AdminAccountService {
 
     public boolean isCurrent(AdminPrincipal principal) {
         return accounts.hasVersion(principal.getUsername(), principal.credentialVersion());
+    }
+
+    @Transactional
+    public void changeUsername(AdminPrincipal principal, ChangeUsernameRequest input) {
+        if (input == null || input.username() == null || input.username().isBlank()
+                || input.username().length() > 100 || !input.username().equals(input.username().trim())
+                || input.username().codePoints().anyMatch(c -> Character.isISOControl(c) || Character.isWhitespace(c))
+                || input.currentPassword() == null || input.currentPassword().isEmpty()
+                || input.currentPassword().getBytes(StandardCharsets.UTF_8).length > 72)
+            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "用户名为 1–100 个字符，不能包含空白或控制字符；请填写当前密码。");
+        var account = accounts.select();
+        if (account == null || !account.username().equals(principal.getUsername())
+                || account.credentialVersion() != principal.credentialVersion())
+            throw new ApiException(HttpStatus.CONFLICT, "CREDENTIALS_CHANGED", "账户已更改，请重新登录。");
+        if (!passwords.matches(input.currentPassword(), account.passwordHash()))
+            throw new ApiException(HttpStatus.BAD_REQUEST, "CURRENT_PASSWORD_INVALID", "当前密码不正确。");
+        if (account.username().equals(input.username()))
+            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "新用户名与当前用户名相同。");
+        if (accounts.changeUsername(principal.getUsername(), account.credentialVersion(), input.username()) != 1)
+            throw new ApiException(HttpStatus.CONFLICT, "CREDENTIALS_CHANGED", "账户已更改，请重新登录。");
     }
 
     @Transactional

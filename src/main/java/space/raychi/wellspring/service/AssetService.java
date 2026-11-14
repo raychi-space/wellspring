@@ -36,7 +36,7 @@ public class AssetService {
         this.root = Path.of(directory).toAbsolutePath().normalize();
     }
 
-    private record ImageMeta(String mediaType, int width, int height) {}
+    record ImageMeta(String mediaType, int width, int height) {}
 
     @org.springframework.transaction.annotation.Transactional
     public UploadedAsset upload(String articleId, MultipartFile file) {
@@ -102,7 +102,7 @@ public class AssetService {
         return new ApiException(HttpStatus.NOT_FOUND, "ASSET_NOT_FOUND", "图片不存在。");
     }
 
-    private static ImageMeta inspect(byte[] bytes) {
+    static ImageMeta inspect(byte[] bytes) {
         try (ImageInputStream stream = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
             Iterator<ImageReader> readers = ImageIO.getImageReaders(stream);
             if (!readers.hasNext()) throw invalid();
