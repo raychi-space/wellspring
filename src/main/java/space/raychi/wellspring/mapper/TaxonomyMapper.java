@@ -21,6 +21,31 @@ public class TaxonomyMapper {
                 "PostgreSQL".equals(c.getMetaData().getDatabaseProductName())));
     }
 
+    /** The permanent default category is the guard for catalog/reference changes. */
+    public void lock() {
+        db.queryForObject("SELECT name FROM categories WHERE name='未分类' FOR UPDATE", String.class);
+    }
+
+    public int rename(Kind kind, String name, String next) {
+        return db.update("UPDATE " + kind.table + " SET name=? WHERE name=?", next, name);
+    }
+
+    public int delete(Kind kind, String name) {
+        return db.update("DELETE FROM " + kind.table + " WHERE name=?", name);
+    }
+
+    public record ReferenceRow(String id, String title, String status, String category, String tags, String scope) {}
+    public List<ReferenceRow> referenceRows() {
+        return db.query("""
+            SELECT id,draft_title AS title,status,draft_category AS category,draft_tags AS tags,'draft' AS scope FROM articles
+            UNION ALL
+            SELECT id,draft_title,status,public_category,public_tags,'public' FROM articles WHERE public_updated_at IS NOT NULL
+            UNION ALL
+            SELECT a.id,a.draft_title,a.status,r.category,r.tags_json,'history' FROM content_revisions r JOIN articles a ON a.id=r.article_id
+            """, (rs, n) -> new ReferenceRow(rs.getString("id"), rs.getString("title"), rs.getString("status"),
+                    rs.getString("category"), rs.getString("tags"), rs.getString("scope")));
+    }
+
     public List<TaxonomyEntity> selectAll(Kind kind) {
         return db.query("SELECT name,created_at FROM " + kind.table + " ORDER BY name",
                 (rs, n) -> new TaxonomyEntity(rs.getString("name"), rs.getTimestamp("created_at").toInstant()));

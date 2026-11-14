@@ -3,7 +3,7 @@
   "info": {
     "title": "Raychi content and site API",
     "version": "0.3.0",
-    "description": "v0.2 extends v0.1 without removing legacy article endpoints. Search v1 extensions: docs/api/search-v1.md. Writing assistant v1: docs/api/writing-agent-v1.md. Site analytics v1: docs/api/analytics-v1.md. Related articles v1: docs/api/related-articles-v1.md. Reading shelf v1: docs/api/reading-v1.md. Full-page IP analytics v2: docs/api/analytics-v2.md. AIHOT management v1: docs/api/reading-management-v1.md."
+    "description": "v0.2 extends v0.1 without removing legacy article endpoints. Search v1 extensions: docs/api/search-v1.md. Writing assistant v1: docs/api/writing-agent-v1.md. Site analytics v1: docs/api/analytics-v1.md. Related articles v1: docs/api/related-articles-v1.md. Reading shelf v1: docs/api/reading-v1.md. Full-page IP analytics v2: docs/api/analytics-v2.md. AIHOT management v1: docs/api/reading-management-v1.md. Personal settings and taxonomy management: docs/api/personal-taxonomy-v1.md."
   },
   "servers": [
     {
@@ -11,6 +11,384 @@
     }
   ],
   "paths": {
+    "/auth/username": {
+      "post": {
+        "summary": "Change login username after verifying current password; revoke current and all old sessions. Bootstrap configuration never overwrites saved credentials.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeUsernameRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Username changed, current session logged out"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "operationId": "changeUsername"
+      }
+    },
+    "/admin/profile/avatar": {
+      "post": {
+        "summary": "Save shared profile/site avatar and settings version atomically; replaces previous avatar. Local preview requires no upload.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Decoded PNG/JPEG <=2 MiB, <=16 million pixels. Re-encoded PNG longest side <=512px; metadata stripped."
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Current site settings version"
+                  }
+                },
+                "required": [
+                  "file",
+                  "version"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "operationId": "saveProfileAvatar"
+      }
+    },
+    "/public/avatar/{id}/content": {
+      "get": {
+        "summary": "Current saved avatar only; replaced IDs return 404. no-store, nosniff; HEAD has length but no body.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Saved PNG",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "operationId": "getProfileAvatar"
+      },
+      "head": {
+        "summary": "Current saved avatar only; replaced IDs return 404. no-store, nosniff; HEAD has length but no body.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Saved PNG",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "operationId": "headProfileAvatar"
+      }
+    },
+    "/admin/taxonomy/{kind}": {
+      "get": {
+        "summary": "Catalog with distinct content reference counts across draft, stored public snapshot, trash and retained revisions; referenceCount deduplicates all scopes. Draft-only unpublished tag names remain absent from catalog.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "categories",
+                "tags"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TaxonomyManagementItem"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "operationId": "getTaxonomyManagement"
+      },
+      "put": {
+        "summary": "Rename only an unreferenced catalog item. Default 未分类 is protected. Serialize with content reference creation; never mutate content snapshots/history.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "categories",
+                "tags"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaxonomyManagementRename"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Renamed"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "operationId": "putTaxonomyManagement"
+      },
+      "delete": {
+        "summary": "Delete only an unreferenced item; default 未分类 protected. Recheck references under transaction lock.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "categories",
+                "tags"
+              ]
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "operationId": "deleteTaxonomyManagement"
+      }
+    },
+    "/admin/taxonomy/{kind}/references": {
+      "get": {
+        "summary": "Distinct content identifiers referencing the name in any draft/public/trash/history scope. TRASHED items open trash management.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "categories",
+                "tags"
+              ]
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TaxonomyManagementReference"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "operationId": "taxonomyReferences"
+      }
+    },
     "/admin/analytics/events": {
       "get": {
         "summary": "ADMIN session only; v2 analytics IP details",
@@ -5584,6 +5962,108 @@
       }
     },
     "schemas": {
+      "ChangeUsernameRequest": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "writeOnly": true,
+            "description": "Current password, UTF-8 <=72 bytes"
+          },
+          "username": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Login username; no whitespace/control characters; must differ from current username"
+          }
+        },
+        "required": [
+          "currentPassword",
+          "username"
+        ]
+      },
+      "TaxonomyManagementItem": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "draftCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "publicCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "trashCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "historyCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "referenceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "protectedName": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "draftCount",
+          "publicCount",
+          "trashCount",
+          "historyCount",
+          "referenceCount",
+          "protectedName"
+        ]
+      },
+      "TaxonomyManagementRename": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "newName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Tags <=40 characters; categories <=80"
+          }
+        },
+        "required": [
+          "name",
+          "newName"
+        ]
+      },
+      "TaxonomyManagementReference": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "TRASHED"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "status"
+        ]
+      },
       "AnalyticsSummaryV2": {
         "type": "object",
         "additionalProperties": false,
