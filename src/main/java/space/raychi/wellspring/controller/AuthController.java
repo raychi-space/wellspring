@@ -1,5 +1,6 @@
 package space.raychi.wellspring.controller;
 
+import space.raychi.wellspring.dto.ChangeUsernameRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ResponseEntity;
@@ -34,6 +35,14 @@ public class AuthController {
     @PostMapping("/login")
     ResponseEntity<SessionResponse> login(@RequestBody LoginRequest input, HttpServletRequest request, HttpServletResponse response) {
         return ApiResponses.ok(auth.login(input, request, response));
+    }
+
+    @PostMapping("/username")
+    ResponseEntity<Void> changeUsername(Authentication authentication,
+            @RequestBody ChangeUsernameRequest input,
+            HttpServletRequest request, HttpServletResponse response) {
+        auth.changeUsername(authentication, input, request, response);
+        return ApiResponses.noContent();
     }
 
     @PostMapping("/password")

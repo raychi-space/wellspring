@@ -30,6 +30,11 @@ public class AdminAccountMapper {
                 Boolean.class, username, version));
     }
 
+    public int changeUsername(String username, long version, String next) {
+        return db.update("UPDATE admin_account SET username=?, credential_version=credential_version+1 WHERE id=1 AND username=? AND credential_version=?",
+                next, username, version);
+    }
+
     public int changePassword(String username, long version, String hash) {
         return db.update("UPDATE admin_account SET password_hash=?, credential_version=credential_version+1 WHERE id=1 AND username=? AND credential_version=?",
                 hash, username, version);

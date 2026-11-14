@@ -176,6 +176,7 @@ public class ArticleService {
 
     @Transactional
     public AdminArticle create(String contentType, ArticleInput input) {
+        taxonomy.lock();
         String kind = type(contentType);
         if (kind.equals("THOUGHT")) throw bad("现在只支持创建文章和帖子。");
         String id = UUID.randomUUID().toString();
@@ -263,6 +264,7 @@ public class ArticleService {
 
     @Transactional
     public AdminArticle save(String id, ArticleInput input) {
+        taxonomy.lock();
         return save(required(id, true), input);
     }
 
@@ -298,6 +300,7 @@ public class ArticleService {
 
     @Transactional
     public AdminArticle restoreRevision(String id, String revisionId, VersionInput input) {
+        taxonomy.lock();
         if (input == null || input.expectedVersion() == null || input.expectedVersion() < 0)
             throw bad("请提供当前工作稿版本。");
         var current = required(id, true);
@@ -309,6 +312,7 @@ public class ArticleService {
 
     @Transactional
     public AdminArticle publish(String id, VersionInput input) {
+        taxonomy.lock();
         return publish(required(id, true), input);
     }
 
@@ -400,11 +404,13 @@ public class ArticleService {
 
     @Transactional
     public AdminArticle saveLegacyArticle(String id, ArticleInput input) {
+        taxonomy.lock();
         return save(requiredLegacyArticle(id, true), input);
     }
 
     @Transactional
     public AdminArticle publishLegacyArticle(String id, VersionInput input) {
+        taxonomy.lock();
         return publish(requiredLegacyArticle(id, true), input);
     }
 

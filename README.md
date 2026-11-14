@@ -94,3 +94,5 @@ V11记录每篇最近100条工作稿修订，创建/保存/发布/撤回/成功�
 新环境默认 PostgreSQL 17；驱动根据 JDBC URL 选择，Flyway 根据数据库类型选择 `db/postgresql` 或原 `db/migration`。PostgreSQL V1 对应 MySQL V14 的完整状态，原 MySQL 历史文件及校验和不修改。现有本机 MySQL 环境仍可显式配置原 `RAYCHI_DB_URL`；旧 `mysql` 服务及数据卷保留在 `legacy-mysql` profile，显式 `docker compose up -d --wait mysql` 可按原私有配置启动；需原 `RAYCHI_DB_ROOT_PASSWORD`。默认启动只启用 PG，不能让新 PG 复用旧 MySQL 卷。
 
 迁移、字段校验、失败边界及测试命令见 [数据库迁移](docs/database-migration.md)。站点 HTTP 契约、内容 UUID、公开地址和权限保持原行为；搜索、Agent、统计继续保有各自 SQLite。数据库迁移不迁移这些内核，也不改变 Agent 加密主密钥。
+
+个人设置与分类标签管理见 [契约](docs/api/personal-taxonomy-v1.md)：头像明确保存、登录用户名修改使旧会话失效、目录引用保护及未引用项改删。头像使用独立单行数据库记录，随现有数据库备份；PostgreSQL V2 / MySQL V15 为兼容新增表。

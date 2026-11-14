@@ -66,12 +66,16 @@ public final class DatabaseTransfer {
             source.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
             source.setAutoCommit(false);
             target.createStatement().execute("SET TIME ZONE 'UTC'");
-            assertTables(source, true);
+            int sourceVersion;
             try (var row = source.createStatement().executeQuery(
                     "SELECT COUNT(*),MAX(CAST(version AS UNSIGNED)),SUM(success=0) FROM flyway_schema_history")) {
-                if (!row.next() || row.getInt(1) != 14 || row.getInt(2) != 14 || row.getInt(3) != 0)
-                    throw new IllegalStateException("Source must have all 14 successful MySQL migrations");
+                if (!row.next() || !List.of(14, 15).contains(row.getInt(2)) || row.getInt(1) != row.getInt(2) || row.getInt(3) != 0)
+                    throw new IllegalStateException("Source must have all 14 or 15 successful MySQL migrations");
+                sourceVersion = row.getInt(2);
             }
+            var tables = new ArrayList<>(TABLES);
+            if (sourceVersion == 15) tables.add("profile_avatar");
+            assertTables(source, true, tables);
             if (copy) {
                 try (var rows = target.createStatement().executeQuery(
                         "SELECT count(*) FROM information_schema.tables WHERE table_schema=current_schema() AND table_type='BASE TABLE'")) {
@@ -81,13 +85,18 @@ public final class DatabaseTransfer {
                 Flyway.configure().dataSource(targetUrl, required(environment, "RAYCHI_MIGRATION_TARGET_USER"),
                         required(environment, "RAYCHI_MIGRATION_TARGET_PASSWORD")).locations("classpath:db/postgresql").load().migrate();
             }
-            assertTables(target, false);
+            var targetTables = new ArrayList<>(TABLES);
+            boolean targetAvatar = hasAvatarTable(target);
+            if (targetAvatar) targetTables.add("profile_avatar");
+            if (sourceVersion == 15 && !targetAvatar)
+                throw new IllegalStateException("Target is missing the profile avatar table");
+            assertTables(target, false, targetTables);
             target.setAutoCommit(false);
             target.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
             try {
                 if (copy) target.createStatement().execute("TRUNCATE TABLE "
-                        + String.join(",", TABLES.stream().map(t -> quote(t, false)).toList()));
-                for (String table : TABLES) {
+                        + String.join(",", targetTables.stream().map(t -> quote(t, false)).toList()));
+                for (String table : tables) {
                     List<Column> columns = columns(source, table, true);
                     if (!columns.stream().map(Column::name).toList().equals(
                             columns(target, table, false).stream().map(Column::name).toList()))
@@ -98,9 +107,15 @@ public final class DatabaseTransfer {
                     if (!original.equals(migrated)) throw new IllegalStateException("Data mismatch in " + table);
                     System.out.println("VERIFIED " + table + " rows=" + original.rows() + " sha256=" + original.sha256());
                 }
+                if (sourceVersion == 14 && targetAvatar) {
+                    try (var rows = target.createStatement().executeQuery("SELECT COUNT(*) FROM profile_avatar")) {
+                        rows.next();
+                        if (rows.getLong(1) != 0) throw new IllegalStateException("Unexpected target avatar data");
+                    }
+                }
                 if (copy) target.commit(); else target.rollback();
                 source.rollback();
-                System.out.println(copy ? "PASS copied and verified all 16 tables" : "PASS verified all 16 tables");
+                System.out.println((copy ? "PASS copied and verified all " : "PASS verified all ") + tables.size() + " tables");
             } catch (Exception error) {
                 target.rollback();
                 throw error;
@@ -108,13 +123,19 @@ public final class DatabaseTransfer {
         }
     }
 
-    private static void assertTables(Connection db, boolean mysql) throws Exception {
+    private static boolean hasAvatarTable(Connection db) throws Exception {
+        try (var rows = db.createStatement().executeQuery("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=current_schema() AND table_name='profile_avatar' AND table_type='BASE TABLE'")) {
+            rows.next(); return rows.getLong(1) == 1;
+        }
+    }
+
+    private static void assertTables(Connection db, boolean mysql, List<String> tables) throws Exception {
         var names = new ArrayList<String>();
         try (var rows = db.createStatement().executeQuery("SELECT table_name FROM information_schema.tables WHERE table_schema="
                 + (mysql ? "DATABASE()" : "current_schema()") + " AND table_type='BASE TABLE'")) {
             while (rows.next()) names.add(rows.getString(1));
         }
-        var expected = new ArrayList<>(TABLES); expected.add("flyway_schema_history");
+        var expected = new ArrayList<>(tables); expected.add("flyway_schema_history");
         if (!names.stream().sorted().toList().equals(expected.stream().sorted().toList()))
             throw new IllegalStateException("Unexpected tables; do not silently omit data");
     }
@@ -126,6 +147,7 @@ public final class DatabaseTransfer {
             for (int i = 1; i <= metadata.getColumnCount(); i++) {
                 int type = metadata.getColumnType(i);
                 if (type == Types.TIMESTAMP_WITH_TIMEZONE) type = Types.TIMESTAMP;
+                if (List.of(Types.BINARY, Types.VARBINARY, Types.LONGVARBINARY, Types.BLOB).contains(type)) type = Types.BINARY;
                 result.add(new Column(metadata.getColumnName(i), type));
             }
         }
@@ -147,6 +169,7 @@ public final class DatabaseTransfer {
             case Types.BIT, Types.BOOLEAN, Types.TINYINT -> rows.getBoolean(index);
             case Types.INTEGER, Types.BIGINT, Types.SMALLINT -> rows.getLong(index);
             case Types.TIMESTAMP -> rows.getTimestamp(index, UTC);
+            case Types.BINARY -> rows.getBytes(index);
             default -> rows.getString(index);
         };
         return rows.wasNull() ? null : result;
@@ -163,6 +186,7 @@ public final class DatabaseTransfer {
                 for (int i = 0; i < columns.size(); i++) {
                     Object data = value(rows, i + 1, columns.get(i));
                     if (data instanceof java.sql.Timestamp timestamp) statement.setTimestamp(i + 1, timestamp, UTC);
+                    else if (data instanceof byte[] bytes) statement.setBytes(i + 1, bytes);
                     else statement.setObject(i + 1, data);
                 }
                 statement.addBatch();
@@ -185,7 +209,7 @@ public final class DatabaseTransfer {
                         if (data == null) output.writeInt(-1);
                         else {
                             String text = data instanceof java.sql.Timestamp timestamp ? timestamp.toInstant().toString() : data.toString();
-                            byte[] encoded = text.getBytes(StandardCharsets.UTF_8);
+                            byte[] encoded = data instanceof byte[] binary ? binary : text.getBytes(StandardCharsets.UTF_8);
                             output.writeInt(encoded.length); output.write(encoded);
                         }
                     }

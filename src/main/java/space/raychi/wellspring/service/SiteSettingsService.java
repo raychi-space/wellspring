@@ -77,6 +77,14 @@ public class SiteSettingsService {
         return read();
     }
 
+    @Transactional
+    public Settings saveAvatar(String url, long version) {
+        Settings current = read();
+        return save(new Settings(version, current.siteName(), current.intro(), url,
+                current.contacts(), current.accounts(), current.navigation(), current.homeSections(),
+                current.homepage(), current.projectIntro(), current.socialAccounts()));
+    }
+
     private static void validate(Settings input) {
         if (input == null || input.siteName() == null || input.siteName().isBlank() || input.siteName().length() > 100
                 || input.intro() == null || input.intro().length() > 300
