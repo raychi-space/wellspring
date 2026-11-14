@@ -1,5 +1,6 @@
 package space.raychi.wellspring.service;
 
+import space.raychi.wellspring.dto.ChangeUsernameRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -62,6 +63,14 @@ public class AuthService {
         } catch (BadCredentialsException ex) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "用户名或密码错误。");
         }
+    }
+
+    public void changeUsername(Authentication authentication, ChangeUsernameRequest input,
+                               HttpServletRequest request, HttpServletResponse response) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof AdminPrincipal principal))
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_REQUIRED", "请重新登录。");
+        accounts.changeUsername(principal, input);
+        logout(request, response);
     }
 
     public void changePassword(Authentication authentication, ChangePasswordRequest input,

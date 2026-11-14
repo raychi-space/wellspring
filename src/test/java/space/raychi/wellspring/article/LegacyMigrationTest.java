@@ -58,7 +58,7 @@ class LegacyMigrationTest {
         db.execute("ALTER TABLE tags MODIFY name VARCHAR(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL");
         Flyway.configure().dataSource(source).locations("classpath:db/migration")
                 .target("4").load().migrate();
-        TaxonomyService taxonomy = new TaxonomyService(new TaxonomyMapper(db));
+        TaxonomyService taxonomy = new TaxonomyService(new TaxonomyMapper(db), new ObjectMapper());
         assertThat(taxonomy.createTag(new NameDto("tech")).name()).isEqualTo("tech");
         assertThat(taxonomy.createTag(new NameDto("TECH")).name()).isEqualTo("TECH");
         assertThat(db.queryForList("SELECT name FROM tags ORDER BY name", String.class))
