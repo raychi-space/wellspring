@@ -5,7 +5,7 @@ Wellspring 拥有账户、站点头像与分类标签目录；管理台通过同
 ## 个人设置
 
 - `POST /api/v1/auth/username`：`{currentPassword, username}`。新用户名 1–100 字符，不含空白/控制字符、不裁剪，不能与当前相同；当前密码验证及 UTF-8 72 字节上限沿用改密。成功 204，递增持久化凭据版本并注销当前会话；其他旧会话在下次请求失效。旧用户名不再登录，密码保持；重启不会被 bootstrap 环境覆盖。错误当前密码 400 `CURRENT_PASSWORD_INVALID`，非法字段 400 `VALIDATION_FAILED`，并发凭据变化 409 `CREDENTIALS_CHANGED`。
-- `POST /api/v1/admin/profile/avatar`：multipart `file` 和当前站点设置 `version`。真实解码校验 PNG/JPEG、最多 2 MiB/1600 万像素；重新编码为 PNG 并缩到最长边 512px，保留比例、去除元数据。返回完整最新站点设置；与头像数据在同一事务内更新。旧版本 409 `SETTINGS_VERSION_CONFLICT`，非法图片 400 `ASSET_INVALID`，超出文件大小 413 `ASSET_TOO_LARGE`。不接受 SVG。
+- `POST /api/v1/admin/profile/avatar`：multipart `file` 和当前站点设置 `version`。真实解码校验 PNG/JPEG、最多 5 MiB/1600 万像素；重新编码为 PNG 并缩到最长边 512px，保留比例、去除元数据。返回完整最新站点设置；与头像数据在同一事务内更新。旧版本 409 `SETTINGS_VERSION_CONFLICT`，非法图片 400 `ASSET_INVALID`，超出文件大小 413 `ASSET_TOO_LARGE`。不接受 SVG。
 - `GET/HEAD /api/v1/public/avatar/{id}/content`：仅当前已保存头像，匿名可读，`image/png`、`no-store`、`nosniff`。替换后旧 ID 返回 404；失败或版本冲突不替换旧图。HEAD 保留长度，无响应体。
 - 头像共用于管理台侧栏、写作对话及公开站，与网站设置中的 `avatarUrl` 为同一权威值。保存只修改头像，保留网站其他字段；旧客户端完整设置保存仍有原版本检查。当前头像单行保存在内容数据库并由现有数据库备份覆盖，不创建虚构文章或修改正文附件权限。
 - 预览与取消仅管理台本地操作，选择文件不发送请求；明确保存才上传。改密仍使用 `/auth/password` 及既有规则。用户名和密码成功修改后均需重新登录。
