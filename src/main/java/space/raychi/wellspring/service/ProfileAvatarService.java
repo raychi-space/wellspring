@@ -27,8 +27,8 @@ public class ProfileAvatarService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "请提供当前站点设置版本。");
         if (file == null || file.isEmpty())
             throw new ApiException(HttpStatus.BAD_REQUEST, "ASSET_INVALID", "请选择头像图片。");
-        if (file.getSize() > 2 * 1024 * 1024)
-            throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "ASSET_TOO_LARGE", "头像不能超过 2 MiB。");
+        if (file.getSize() > 5 * 1024 * 1024)
+            throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "ASSET_TOO_LARGE", "头像不能超过 5 MiB。");
         byte[] bytes;
         try {
             bytes = file.getBytes();

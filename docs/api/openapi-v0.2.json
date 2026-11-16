@@ -69,7 +69,7 @@
                   "file": {
                     "type": "string",
                     "format": "binary",
-                    "description": "Decoded PNG/JPEG <=2 MiB, <=16 million pixels. Re-encoded PNG longest side <=512px; metadata stripped."
+                    "description": "Decoded PNG/JPEG <=5 MiB, <=16 million pixels. Re-encoded PNG longest side <=512px; metadata stripped."
                   },
                   "version": {
                     "type": "integer",
