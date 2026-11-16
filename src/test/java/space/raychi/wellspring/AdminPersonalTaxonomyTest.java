@@ -80,9 +80,12 @@ class AdminPersonalTaxonomyTest {
             .andExpect(status().isForbidden());
         mvc.perform(multipart("/api/v1/admin/profile/avatar").file(new MockMultipartFile("file", "fake.png", "image/png", "not an image".getBytes()))
             .param("version", ""+before.version()).with(user("admin")).with(csrf())).andExpect(status().isBadRequest());
-        mvc.perform(multipart("/api/v1/admin/profile/avatar").file(new MockMultipartFile("file", "big.png", "image/png", new byte[2*1024*1024+1]))
+        mvc.perform(multipart("/api/v1/admin/profile/avatar").file(new MockMultipartFile("file", "big.png", "image/png", new byte[5*1024*1024+1]))
             .param("version", ""+before.version()).with(user("admin")).with(csrf())).andExpect(status().isPayloadTooLarge());
-        mvc.perform(multipart("/api/v1/admin/profile/avatar").file(file).param("version", ""+before.version()).with(user("admin")).with(csrf()))
+        // Exactly 5 MiB is accepted, including files above the previous 2 MiB limit.
+        var boundary = new MockMultipartFile("file", "boundary.png", "image/png",
+                java.util.Arrays.copyOf(buffer.toByteArray(), 5 * 1024 * 1024));
+        mvc.perform(multipart("/api/v1/admin/profile/avatar").file(boundary).param("version", ""+before.version()).with(user("admin")).with(csrf()))
             .andExpect(status().isOk());
         var saved = settings.publicSettings();
         assertThat(saved.version()).isEqualTo(before.version()+1);
