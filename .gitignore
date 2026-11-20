@@ -11,3 +11,9 @@ build/
 /uploads/
 /.idea/
 *.iml
+
+/docs/*
+!/docs/api/
+/docs/api/*
+!/docs/api/openapi-v0.1.json
+!/docs/api/openapi-v0.2.json
