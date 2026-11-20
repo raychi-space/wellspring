@@ -37,6 +37,11 @@ class AnalyticsDetailsTest {
                     String body=exchange.getRequestURI().getPath().endsWith("/events")
                       ? "{"+metadata+",\"total\":1,\"page\":1,\"pageSize\":20,\"items\":[{\"id\":\"one\",\"occurredAt\":\"2026-11-07T00:00:00Z\",\"ip\":\"114.114.114.114\",\"path\":\"/reading\",\"source\":\"direct_or_unknown\",\"country\":\"中国\",\"province\":\"江苏省\",\"city\":\"南京市\",\"visitor\":\"hidden\"}]}"
                       : "{"+metadata+",\"summary\":{\"pageViews\":1,\"visitors\":1,\"todayPageViews\":1,\"todayVisitors\":1},\"trend\":[],\"countries\":[],\"provinces\":[],\"cities\":[],\"sources\":[],\"popularPaths\":[],\"token\":\"hidden\"}";
+                    if (exchange.getRequestURI().getPath().endsWith("/map")) {
+                        body = "{"+metadata+",\"coverage\":{\"from\":\"2026-11-07\",\"to\":\"2026-11-08\",\"secret\":\"hidden\"},\"uniqueIps\":1,\"unlocatedIps\":0,\"detailLevel\":\"city\",\"points\":[{\"id\":\"1001799962\",\"level\":\"city\",\"country\":\"中国\",\"province\":\"江苏省\",\"city\":\"南京市\",\"latitude\":32.062,\"longitude\":118.778,\"uniqueIps\":1,\"pageViews\":3,\"ip\":\"hidden\",\"visitor\":\"hidden\"}] }";
+                        if (exchange.getRequestURI().getRawQuery().contains("source=bad.example"))
+                            body = body.replace("32.062", "91.0");
+                    }
                     byte[] bytes=body.getBytes(StandardCharsets.UTF_8);exchange.sendResponseHeaders(200,bytes.length);exchange.getResponseBody().write(bytes);
                 }
                 exchange.close();
@@ -73,5 +78,21 @@ class AnalyticsDetailsTest {
         }
         for(String bad:new String[]{"&ip=hostname.example","&page=0","&pageSize=101","&ip=abc","&path=/studio","&from=2026-11-06","&secret=x"})
             mvc.perform(get("/api/v1/admin/analytics/events"+query+bad).with(user("owner").roles("ADMIN"))).andExpect(status().isBadRequest());
+    }
+    @Test void visitMapRequiresAdminAndValidatesAggregateResponses() throws Exception {
+        String path = "/api/v1/admin/analytics/map?from=2026-11-07&to=2026-11-08";
+        var admin = user("owner").roles("ADMIN");
+        mvc.perform(get(path)).andExpect(status().isUnauthorized());
+        mvc.perform(get(path).with(user("reader"))).andExpect(status().isForbidden());
+        mvc.perform(get(path).with(admin)).andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.uniqueIps").value(1))
+                .andExpect(jsonPath("$.points[0].longitude").value(118.778))
+                .andExpect(jsonPath("$.retention").doesNotExist())
+                .andExpect(jsonPath("$.coverage.secret").doesNotExist())
+                .andExpect(jsonPath("$.points[0].ip").doesNotExist())
+                .andExpect(jsonPath("$.points[0].visitor").doesNotExist());
+        mvc.perform(get(path + "&page=1").with(admin)).andExpect(status().isBadRequest());
+        mvc.perform(get(path + "&source=bad.example").with(admin)).andExpect(status().isServiceUnavailable());
     }
 }

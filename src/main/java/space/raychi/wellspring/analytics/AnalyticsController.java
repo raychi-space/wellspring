@@ -55,11 +55,16 @@ public class AnalyticsController {
     @GetMapping("/api/v1/admin/analytics/overview")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<JsonNode> overview(@RequestParam MultiValueMap<String, String> input) {
-        return ApiResponses.okNoStore(analytics.detailsReport(input, false));
+        return ApiResponses.okNoStore(analytics.detailsReport(input, AnalyticsClient.V2Resource.REPORT));
     }
     @GetMapping("/api/v1/admin/analytics/events")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<JsonNode> events(@RequestParam MultiValueMap<String, String> input) {
-        return ApiResponses.okNoStore(analytics.detailsReport(input, true));
+        return ApiResponses.okNoStore(analytics.detailsReport(input, AnalyticsClient.V2Resource.EVENTS));
+    }
+    @GetMapping("/api/v1/admin/analytics/map")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<JsonNode> map(@RequestParam MultiValueMap<String, String> input) {
+        return ApiResponses.okNoStore(analytics.detailsReport(input, AnalyticsClient.V2Resource.MAP));
     }
 }
