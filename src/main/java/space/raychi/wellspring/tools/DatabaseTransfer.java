@@ -69,12 +69,12 @@ public final class DatabaseTransfer {
             int sourceVersion;
             try (var row = source.createStatement().executeQuery(
                     "SELECT COUNT(*),MAX(CAST(version AS UNSIGNED)),SUM(success=0) FROM flyway_schema_history")) {
-                if (!row.next() || !List.of(14, 15).contains(row.getInt(2)) || row.getInt(1) != row.getInt(2) || row.getInt(3) != 0)
-                    throw new IllegalStateException("Source must have all 14 or 15 successful MySQL migrations");
+                if (!row.next() || !List.of(14, 15, 16).contains(row.getInt(2)) || row.getInt(1) != row.getInt(2) || row.getInt(3) != 0)
+                    throw new IllegalStateException("Source must have all 14, 15 or 16 successful MySQL migrations");
                 sourceVersion = row.getInt(2);
             }
             var tables = new ArrayList<>(TABLES);
-            if (sourceVersion == 15) tables.add("profile_avatar");
+            if (sourceVersion >= 15) tables.add("profile_avatar");
             assertTables(source, true, tables);
             if (copy) {
                 try (var rows = target.createStatement().executeQuery(
@@ -88,7 +88,7 @@ public final class DatabaseTransfer {
             var targetTables = new ArrayList<>(TABLES);
             boolean targetAvatar = hasAvatarTable(target);
             if (targetAvatar) targetTables.add("profile_avatar");
-            if (sourceVersion == 15 && !targetAvatar)
+            if (sourceVersion >= 15 && !targetAvatar)
                 throw new IllegalStateException("Target is missing the profile avatar table");
             assertTables(target, false, targetTables);
             target.setAutoCommit(false);
@@ -98,8 +98,12 @@ public final class DatabaseTransfer {
                         + String.join(",", targetTables.stream().map(t -> quote(t, false)).toList()));
                 for (String table : tables) {
                     List<Column> columns = columns(source, table, true);
-                    if (!columns.stream().map(Column::name).toList().equals(
-                            columns(target, table, false).stream().map(Column::name).toList()))
+                    var targetColumns = columns(target, table, false).stream().map(Column::name).toList();
+                    if (table.equals("admin_account") && sourceVersion < 16 && targetColumns.contains("nickname")) {
+                        assertNoNicknames(target);
+                        targetColumns = targetColumns.stream().filter(name -> !name.equals("nickname")).toList();
+                    }
+                    if (!columns.stream().map(Column::name).toList().equals(targetColumns))
                         throw new IllegalStateException("Column mismatch in " + table);
                     if (copy) copy(source, target, table, columns);
                     Fingerprint original = fingerprint(source, table, columns, true);
@@ -120,6 +124,14 @@ public final class DatabaseTransfer {
                 target.rollback();
                 throw error;
             }
+        }
+    }
+
+    private static void assertNoNicknames(Connection db) throws Exception {
+        try (var statement = db.createStatement();
+             var rows = statement.executeQuery("SELECT COUNT(*) FROM admin_account WHERE nickname IS NOT NULL")) {
+            rows.next();
+            if (rows.getLong(1) != 0) throw new IllegalStateException("Unexpected target nickname data");
         }
     }
 

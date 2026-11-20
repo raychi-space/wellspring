@@ -1,6 +1,5 @@
 package space.raychi.wellspring.controller;
 
-import space.raychi.wellspring.dto.ChangeUsernameRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ResponseEntity;
@@ -8,13 +7,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import space.raychi.wellspring.api.ApiResponses;
 import space.raychi.wellspring.dto.CsrfResponse;
 import space.raychi.wellspring.dto.ChangePasswordRequest;
+import space.raychi.wellspring.dto.ChangeUsernameRequest;
 import space.raychi.wellspring.dto.LoginRequest;
+import space.raychi.wellspring.dto.SaveNicknameRequest;
 import space.raychi.wellspring.dto.SessionResponse;
 import space.raychi.wellspring.service.AuthService;
 
@@ -35,6 +37,11 @@ public class AuthController {
     @PostMapping("/login")
     ResponseEntity<SessionResponse> login(@RequestBody LoginRequest input, HttpServletRequest request, HttpServletResponse response) {
         return ApiResponses.ok(auth.login(input, request, response));
+    }
+
+    @PutMapping("/nickname")
+    ResponseEntity<SessionResponse> saveNickname(Authentication authentication, @RequestBody SaveNicknameRequest input) {
+        return ApiResponses.ok(auth.saveNickname(authentication, input));
     }
 
     @PostMapping("/username")

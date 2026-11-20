@@ -1,6 +1,5 @@
 package space.raychi.wellspring.service;
 
-import space.raychi.wellspring.dto.ChangeUsernameRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -18,7 +17,9 @@ import org.springframework.stereotype.Service;
 import space.raychi.wellspring.api.ApiException;
 import space.raychi.wellspring.dto.CsrfResponse;
 import space.raychi.wellspring.dto.ChangePasswordRequest;
+import space.raychi.wellspring.dto.ChangeUsernameRequest;
 import space.raychi.wellspring.dto.LoginRequest;
+import space.raychi.wellspring.dto.SaveNicknameRequest;
 import space.raychi.wellspring.dto.SessionResponse;
 
 @Service
@@ -40,9 +41,12 @@ public class AuthService {
     }
 
     public SessionResponse session(Authentication authentication) {
-        boolean valid = authentication != null && authentication.isAuthenticated()
-                && !(authentication instanceof org.springframework.security.authentication.AnonymousAuthenticationToken);
-        return new SessionResponse(valid, valid ? authentication.getName() : null);
+        if (authentication != null && authentication.isAuthenticated()
+                && authentication.getPrincipal() instanceof AdminPrincipal principal) {
+            String nickname = accounts.currentNickname(principal);
+            if (nickname != null) return new SessionResponse(true, principal.getUsername(), nickname);
+        }
+        return new SessionResponse(false, null, null);
     }
 
     public SessionResponse login(LoginRequest input, HttpServletRequest request, HttpServletResponse response) {
@@ -52,6 +56,8 @@ public class AuthService {
         try {
             Authentication authentication = manager.authenticate(
                     new UsernamePasswordAuthenticationToken(input.username(), input.password()));
+            SessionResponse session = session(authentication);
+            if (!session.authenticated()) throw new BadCredentialsException("Credentials changed during login");
             request.getSession(true);
             request.changeSessionId();
             SecurityContext context = SecurityContextHolder.createEmptyContext();
@@ -59,10 +65,17 @@ public class AuthService {
             SecurityContextHolder.setContext(context);
             contexts.saveContext(context, request, response);
             csrfTokens.saveToken(null, request, response);
-            return new SessionResponse(true, authentication.getName());
+            return session;
         } catch (BadCredentialsException ex) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "用户名或密码错误。");
         }
+    }
+
+    public SessionResponse saveNickname(Authentication authentication, SaveNicknameRequest input) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof AdminPrincipal principal)) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_REQUIRED", "请重新登录。");
+        }
+        return new SessionResponse(true, principal.getUsername(), accounts.saveNickname(principal, input));
     }
 
     public void changeUsername(Authentication authentication, ChangeUsernameRequest input,
