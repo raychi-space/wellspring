@@ -1,6 +1,5 @@
 package space.raychi.wellspring.service;
 
-import space.raychi.wellspring.dto.ChangeUsernameRequest;
 import java.nio.charset.StandardCharsets;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -9,6 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.raychi.wellspring.api.ApiException;
 import space.raychi.wellspring.dto.ChangePasswordRequest;
+import space.raychi.wellspring.dto.ChangeUsernameRequest;
+import space.raychi.wellspring.dto.SaveNicknameRequest;
 import space.raychi.wellspring.mapper.AdminAccountMapper;
 
 @Service
@@ -36,6 +37,27 @@ public class AdminAccountService {
 
     public boolean isCurrent(AdminPrincipal principal) {
         return accounts.hasVersion(principal.getUsername(), principal.credentialVersion());
+    }
+
+    public String currentNickname(AdminPrincipal principal) {
+        return accounts.selectNickname(principal.getUsername(), principal.credentialVersion());
+    }
+
+    @Transactional
+    public String saveNickname(AdminPrincipal principal, SaveNicknameRequest input) {
+        if (input == null || input.nickname() == null
+                || input.nickname().codePoints().anyMatch(Character::isISOControl)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "请输入 1–100 个字符的昵称，不能包含控制字符。");
+        }
+        String nickname = input.nickname().strip();
+        if (nickname.isEmpty() || nickname.length() > 100) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "请输入 1–100 个字符的昵称。");
+        }
+        int changed = accounts.saveNickname(principal.getUsername(), principal.credentialVersion(), nickname);
+        if (changed == 0 && !nickname.equals(currentNickname(principal))) {
+            throw new ApiException(HttpStatus.CONFLICT, "CREDENTIALS_CHANGED", "账户已更改，请重新登录。");
+        }
+        return nickname;
     }
 
     @Transactional

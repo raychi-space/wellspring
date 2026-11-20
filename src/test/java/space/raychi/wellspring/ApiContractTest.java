@@ -142,6 +142,51 @@ class ApiContractTest {
                 .andExpect(jsonPath("$.authenticated").value(false));
     }
 
+    @Test
+    void nicknameRequiresSessionAndCsrfButPreservesBothSessionsAndLoginCredentials() throws Exception {
+        String path = "/api/v1/auth/nickname";
+        String input = "{\"nickname\":\"  写作 名称 😀  \"}";
+        mvc.perform(put(path).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(input))
+                .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("AUTH_REQUIRED"));
+
+        var first = loginForNickname();
+        var second = loginForNickname();
+        try {
+            mvc.perform(get("/api/v1/auth/session").session(first))
+                    .andExpect(jsonPath("$.nickname").value("test-admin"));
+            mvc.perform(put(path).session(first).contentType(MediaType.APPLICATION_JSON).content(input))
+                    .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("CSRF_INVALID"));
+            for (String invalid : new String[]{"", "　 ", "a\nb", "a".repeat(101)}) {
+                mvc.perform(put(path).session(first).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                                .content(json.writeValueAsString(java.util.Map.of("nickname", invalid))))
+                        .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+            }
+            String sessionId = first.getId();
+            Long version = db.queryForObject("SELECT credential_version FROM admin_account", Long.class);
+            for (int attempt = 0; attempt < 2; attempt++) {
+                mvc.perform(put(path).session(first).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(input))
+                        .andExpect(status().isOk()).andExpect(jsonPath("$.authenticated").value(true))
+                        .andExpect(jsonPath("$.username").value("test-admin")).andExpect(jsonPath("$.nickname").value("写作 名称 😀"));
+            }
+            assertThat(first.getId()).isEqualTo(sessionId);
+            assertThat(db.queryForObject("SELECT credential_version FROM admin_account", Long.class)).isEqualTo(version);
+            mvc.perform(get("/api/v1/auth/session").session(second))
+                    .andExpect(jsonPath("$.authenticated").value(true)).andExpect(jsonPath("$.nickname").value("写作 名称 😀"));
+            mvc.perform(get("/api/v1/auth/session").session(loginForNickname()))
+                    .andExpect(jsonPath("$.nickname").value("写作 名称 😀"));
+            mvc.perform(get("/api/v1/auth/session")).andExpect(jsonPath("$.nickname").isEmpty());
+        } finally {
+            db.update("UPDATE admin_account SET nickname=NULL WHERE id=1");
+        }
+    }
+
+    private MockHttpSession loginForNickname() throws Exception {
+        return (MockHttpSession) mvc.perform(post("/api/v1/auth/login").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"test-admin\",\"password\":\"test-password\"}"))
+                .andExpect(status().isOk()).andReturn().getRequest().getSession(false);
+    }
+
     private void assertError(MvcResult result, String code) throws Exception {
         var body = json.readTree(result.getResponse().getContentAsString());
         assertThat(body.get("code").asText()).isEqualTo(code);

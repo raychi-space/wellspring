@@ -30,6 +30,16 @@ public class AdminAccountMapper {
                 Boolean.class, username, version));
     }
 
+    public String selectNickname(String username, long version) {
+        return db.query("SELECT COALESCE(nickname, username) FROM admin_account WHERE id=1 AND username=? AND credential_version=?",
+                (rs, n) -> rs.getString(1), username, version).stream().findFirst().orElse(null);
+    }
+
+    public int saveNickname(String username, long version, String nickname) {
+        return db.update("UPDATE admin_account SET nickname=? WHERE id=1 AND username=? AND credential_version=?",
+                nickname, username, version);
+    }
+
     public int changeUsername(String username, long version, String next) {
         return db.update("UPDATE admin_account SET username=?, credential_version=credential_version+1 WHERE id=1 AND username=? AND credential_version=?",
                 next, username, version);

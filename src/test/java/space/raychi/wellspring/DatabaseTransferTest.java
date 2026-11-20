@@ -21,7 +21,7 @@ import space.raychi.wellspring.tools.DatabaseTransfer;
 class DatabaseTransferTest {
     @Test
     void copiesAllColumnsRejectsOverwriteAndDetectsTampering() throws Exception {
-        Map<String, String> env = fixture(15);
+        Map<String, String> env = fixture(16);
         DatabaseTransfer.run(true, env);
         DatabaseTransfer.run(false, env);
         var target = target(env);
@@ -30,6 +30,7 @@ class DatabaseTransferTest {
         assertThat(target.queryForObject("SELECT published_at FROM articles", Timestamp.class).toInstant())
                 .isEqualTo(Instant.parse("2026-11-09T00:01:02.123456Z"));
         assertThat(target.queryForObject("SELECT credential_version FROM admin_account", Long.class)).isEqualTo(7);
+        assertThat(target.queryForObject("SELECT nickname FROM admin_account", String.class)).isEqualTo("原有昵称😀");
         assertThat(target.queryForObject("SELECT count(*) FROM tags", Long.class)).isEqualTo(2);
         assertThat(target.queryForObject("SELECT count(*) FROM categories WHERE name='tech'", Long.class)).isEqualTo(1);
         assertThat(target.queryForObject("SELECT image_bytes FROM profile_avatar WHERE id=1", byte[].class))
@@ -59,7 +60,11 @@ class DatabaseTransferTest {
         Map<String, String> env = fixture(14);
         DatabaseTransfer.run(true, env);
         DatabaseTransfer.run(false, env);
-        assertThat(target(env).queryForObject("SELECT count(*) FROM profile_avatar", Long.class)).isZero();
+        var target = target(env);
+        assertThat(target.queryForObject("SELECT count(*) FROM profile_avatar", Long.class)).isZero();
+        assertThat(target.queryForObject("SELECT nickname FROM admin_account", String.class)).isNull();
+        target.update("UPDATE admin_account SET nickname='unexpected'");
+        assertThatThrownBy(() -> DatabaseTransfer.run(false, env)).isInstanceOf(IllegalStateException.class);
     }
 
     private Map<String, String> fixture(int version) throws Exception {
@@ -73,10 +78,11 @@ class DatabaseTransferTest {
                 .target(Integer.toString(version)).cleanDisabled(false).load();
         flyway.clean(); flyway.migrate();
         var source = new JdbcTemplate(new DriverManagerDataSource(mysql, user, password));
-        source.update("INSERT INTO admin_account VALUES (1,'fixture-admin','fixture-hash-kept-byte-for-byte',7)");
+        source.update("INSERT INTO admin_account(id,username,password_hash,credential_version) VALUES (1,'fixture-admin','fixture-hash-kept-byte-for-byte',7)");
+        if (version >= 16) source.update("UPDATE admin_account SET nickname=?", "原有昵称😀");
         source.update("INSERT INTO categories VALUES ('Téch',CURRENT_TIMESTAMP)");
         source.update("INSERT INTO tags VALUES ('Tech',CURRENT_TIMESTAMP),('tech',CURRENT_TIMESTAMP)");
-        if (version == 15) source.update("INSERT INTO profile_avatar VALUES (1,?,?)", "12345678-1234-1234-1234-123456789012", new byte[]{0, 1, -1, 0, 42});
+        if (version >= 15) source.update("INSERT INTO profile_avatar VALUES (1,?,?)", "12345678-1234-1234-1234-123456789012", new byte[]{0, 1, -1, 0, 42});
         var at = Timestamp.from(Instant.parse("2026-11-09T00:01:02.123456Z"));
         source.update("""
             INSERT INTO articles(id,slug,status,version,draft_title,draft_summary,draft_body,draft_tags,
