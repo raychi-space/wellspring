@@ -11,6 +11,52 @@
     }
   ],
   "paths": {
+    "/auth/nickname": {
+      "put": {
+        "operationId": "saveNickname",
+        "summary": "Save the current administrator's display name in the existing session",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveNicknameRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current session with the saved nickname; login credentials are unchanged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
     "/auth/username": {
       "post": {
         "summary": "Change login username after verifying current password; revoke current and all old sessions. Bootstrap configuration never overwrites saved credentials.",
@@ -5962,6 +6008,20 @@
       }
     },
     "schemas": {
+      "SaveNicknameRequest": {
+        "type": "object",
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Display name; trim surrounding whitespace, reject blank names and control characters, and limit the result to 100 UTF-16 code units"
+          }
+        },
+        "required": [
+          "nickname"
+        ]
+      },
       "ChangeUsernameRequest": {
         "type": "object",
         "properties": {
@@ -7139,7 +7199,15 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Login username"
+          },
+          "nickname": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Administrator display name, defaulting to username for existing accounts; null for anonymous sessions"
           }
         }
       },
