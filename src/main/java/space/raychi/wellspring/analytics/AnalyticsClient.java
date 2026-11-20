@@ -2,18 +2,29 @@ package space.raychi.wellspring.analytics;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
 public class AnalyticsClient {
+    enum V2Resource {
+        REPORT("report"), EVENTS("events"), MAP("map");
+
+        final String path;
+
+        V2Resource(String path) { this.path = path; }
+    }
+
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(1);
     private static final int MAX_RESPONSE_CHARACTERS = 250_000;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(REQUEST_TIMEOUT).build();
@@ -71,12 +82,16 @@ public class AnalyticsClient {
         return data;
     }
 
-    public JsonNode details(String query, String from, String to, boolean events) {
+    JsonNode details(String query, String from, String to, V2Resource resource) {
         try {
-            JsonNode data = readReport("v2", events ? "events" : "report", query, from, to);
+            JsonNode data = readReport("v2", resource.path, query, from, to);
             var safe = json.createObjectNode();
             for (String key : new String[]{"appId", "from", "to"}) safe.set(key, data.get(key));
-            if (events) {
+            if (resource == V2Resource.MAP) {
+                copyMap(data, safe, from, to);
+                return safe;
+            }
+            if (resource == V2Resource.EVENTS) {
                 for (String key : new String[]{"total", "page", "pageSize"}) copyNumber(data, safe, key);
                 if (!data.path("items").isArray() || data.path("items").size() > 100) throw new IllegalStateException();
                 var items = safe.putArray("items");
@@ -107,11 +122,70 @@ public class AnalyticsClient {
         } catch (InterruptedException ex) { Thread.currentThread().interrupt(); throw new IllegalStateException("Analytics unavailable"); }
         catch (Exception ex) { throw new IllegalStateException("Analytics unavailable"); }
     }
-    private void copyNumber(JsonNode input, com.fasterxml.jackson.databind.node.ObjectNode output, String key) {
+
+    private void copyMap(JsonNode data, ObjectNode safe, String from, String to) {
+        copyNumber(data, safe, "uniqueIps");
+        copyNumber(data, safe, "unlocatedIps");
+        copyMapLevel(data, safe, "detailLevel");
+        JsonNode coverage = data.path("coverage");
+        if (coverage.isNull()) {
+            safe.putNull("coverage");
+        } else {
+            var range = safe.putObject("coverage");
+            copyText(coverage, range, "from");
+            copyText(coverage, range, "to");
+            LocalDate start = LocalDate.parse(range.path("from").asText());
+            LocalDate end = LocalDate.parse(range.path("to").asText());
+            if (start.isBefore(LocalDate.parse(from)) || end.isAfter(LocalDate.parse(to)) || !start.isBefore(end))
+                throw new IllegalStateException();
+        }
+        long uniqueIps = safe.path("uniqueIps").asLong();
+        long counted = safe.path("unlocatedIps").asLong();
+        if (counted > uniqueIps || (coverage.isNull() && uniqueIps != 0)
+                || !data.path("points").isArray() || data.path("points").size() > 500)
+            throw new IllegalStateException();
+        var points = safe.putArray("points");
+        var ids = new HashSet<String>();
+        for (JsonNode item : data.path("points")) {
+            var point = points.addObject();
+            copyText(item, point, "id");
+            String id = point.path("id").asText();
+            if (!id.matches("[0-9]{1,16}") || !ids.add(id)) throw new IllegalStateException();
+            copyMapLevel(item, point, "level");
+            copyText(item, point, "country");
+            for (String key : new String[]{"province", "city"}) {
+                if (item.path(key).isNull()) point.putNull(key); else copyText(item, point, key);
+            }
+            copyCoordinate(item, point, "latitude", 90);
+            copyCoordinate(item, point, "longitude", 180);
+            copyNumber(item, point, "uniqueIps");
+            copyNumber(item, point, "pageViews");
+            long groupSize = point.path("uniqueIps").asLong();
+            if (groupSize == 0 || groupSize > uniqueIps - counted || point.path("pageViews").asLong() < groupSize)
+                throw new IllegalStateException();
+            counted += groupSize;
+        }
+        if (counted != uniqueIps) throw new IllegalStateException();
+    }
+
+    private void copyMapLevel(JsonNode input, ObjectNode output, String key) {
+        copyText(input, output, key);
+        if (!Set.of("city", "province", "country").contains(output.path(key).asText()))
+            throw new IllegalStateException();
+    }
+
+    private void copyCoordinate(JsonNode input, ObjectNode output, String key, int limit) {
+        JsonNode coordinate = input.path(key);
+        if (!coordinate.isNumber() || !Double.isFinite(coordinate.asDouble()) || Math.abs(coordinate.asDouble()) > limit)
+            throw new IllegalStateException();
+        output.set(key, coordinate);
+    }
+
+    private void copyNumber(JsonNode input, ObjectNode output, String key) {
         if (!input.path(key).isIntegralNumber() || !input.path(key).canConvertToLong() || input.path(key).asLong() < 0) throw new IllegalStateException();
         output.set(key, input.get(key));
     }
-    private void copyText(JsonNode input, com.fasterxml.jackson.databind.node.ObjectNode output, String key) {
+    private void copyText(JsonNode input, ObjectNode output, String key) {
         if (!input.path(key).isTextual() || input.path(key).asText().length() > 512) throw new IllegalStateException();
         output.set(key, input.get(key));
     }

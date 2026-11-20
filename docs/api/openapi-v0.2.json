@@ -591,6 +591,142 @@
         }
       }
     },
+    "/admin/analytics/map": {
+      "get": {
+        "summary": "Map points grouped after distinct IPs across the filtered raw retention window",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "ip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "province",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsMapReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See analytics-v2.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See analytics-v2.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See analytics-v2.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See analytics-v2.md",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/analytics/overview": {
       "get": {
         "summary": "ADMIN session only; v2 analytics overview",
@@ -6347,6 +6483,152 @@
           },
           "retention": {
             "$ref": "#/components/schemas/AnalyticsRetentionV2"
+          }
+        }
+      },
+      "AnalyticsMapPoint": {
+        "type": "object",
+        "required": [
+          "id",
+          "level",
+          "country",
+          "province",
+          "city",
+          "latitude",
+          "longitude",
+          "uniqueIps",
+          "pageViews"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9]{1,16}$"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "city",
+              "province",
+              "country"
+            ]
+          },
+          "country": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "province": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "uniqueIps": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageViews": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "AnalyticsMapReport": {
+        "type": "object",
+        "required": [
+          "appId",
+          "from",
+          "to",
+          "coverage",
+          "uniqueIps",
+          "unlocatedIps",
+          "detailLevel",
+          "points"
+        ],
+        "properties": {
+          "appId": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": [
+                  "from",
+                  "to"
+                ],
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "uniqueIps": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unlocatedIps": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "detailLevel": {
+            "type": "string",
+            "enum": [
+              "city",
+              "province",
+              "country"
+            ]
+          },
+          "points": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsMapPoint"
+            }
           }
         }
       },

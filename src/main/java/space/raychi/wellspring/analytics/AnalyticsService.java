@@ -149,9 +149,9 @@ public class AnalyticsService {
         try { return client.report(query, from, to); }
         catch (IllegalStateException ex) { throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "ANALYTICS_UNAVAILABLE", "访问统计暂时不可用，请稍后重试。"); }
     }
-    public JsonNode detailsReport(MultiValueMap<String, String> input, boolean events) {
+    JsonNode detailsReport(MultiValueMap<String, String> input, AnalyticsClient.V2Resource resource) {
         input = new LinkedMultiValueMap<>(input);
-        Set<String> allowed = events ? Set.of("from", "to", "path", "source", "ip", "country", "province", "city", "page", "pageSize")
+        Set<String> allowed = resource == AnalyticsClient.V2Resource.EVENTS ? Set.of("from", "to", "path", "source", "ip", "country", "province", "city", "page", "pageSize")
                 : Set.of("from", "to", "path", "source", "ip", "country", "province", "city");
         for (String key : input.keySet()) {
             if (!allowed.contains(key) || input.get(key).size() != 1) throw bad();
@@ -174,7 +174,7 @@ public class AnalyticsService {
         }
         if (!client.enabled) throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "ANALYTICS_DISABLED", "访问统计尚未启用。");
         String query = encodeQuery(input);
-        try { return client.details(query, from, to, events); }
+        try { return client.details(query, from, to, resource); }
         catch (IllegalStateException ex) { throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "ANALYTICS_UNAVAILABLE", "访问统计暂时不可用，请稍后重试。"); }
     }
     private static void validateRange(String from, String to) {
