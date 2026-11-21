@@ -1,0 +1,68 @@
+name: Legacy database migration
+on:
+  push:
+    paths:
+      - .github/workflows/legacy-migration.yml
+      - pom.xml
+      - src/main/java/db/migration/**
+      - src/main/java/space/raychi/wellspring/tools/DatabaseTransfer.java
+      - src/main/resources/db/**
+      - src/test/java/space/raychi/wellspring/DatabaseTransferTest.java
+      - src/test/java/space/raychi/wellspring/article/LegacyMigrationTest.java
+  pull_request:
+    paths:
+      - .github/workflows/legacy-migration.yml
+      - pom.xml
+      - src/main/java/db/migration/**
+      - src/main/java/space/raychi/wellspring/tools/DatabaseTransfer.java
+      - src/main/resources/db/**
+      - src/test/java/space/raychi/wellspring/DatabaseTransferTest.java
+      - src/test/java/space/raychi/wellspring/article/LegacyMigrationTest.java
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  migration:
+    name: MySQL to PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: migration-test-root
+          MYSQL_DATABASE: raychi_migration_test
+        ports: [3306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -pmigration-test-root"
+          --health-interval=5s --health-timeout=3s --health-retries=30
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: raychi
+          POSTGRES_PASSWORD: migration-test-pg
+          POSTGRES_DB: raychi_test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd="pg_isready -U raychi -d raychi_test"
+          --health-interval=5s --health-timeout=3s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Create the legacy upgrade fixture database
+        run: mysql -h 127.0.0.1 -uroot -pmigration-test-root -e 'CREATE DATABASE raychi_case_tags_test'
+      - name: Verify historical upgrade and transfer
+        run: mvn -B '-Dtest=DatabaseTransferTest,LegacyMigrationTest#mysqlMigrationPreservesCaseDistinctLegacyTags' test
+        env:
+          RAYCHI_TEST_MYSQL_URL: jdbc:mysql://127.0.0.1:3306/raychi_case_tags_test?connectionTimeZone=UTC
+          RAYCHI_TEST_MYSQL_USER: root
+          RAYCHI_TEST_MYSQL_PASSWORD: migration-test-root
+          RAYCHI_MIGRATION_TEST_MYSQL_URL: jdbc:mysql://127.0.0.1:3306/raychi_migration_test?connectionTimeZone=UTC
+          RAYCHI_MIGRATION_TEST_MYSQL_USER: root
+          RAYCHI_MIGRATION_TEST_MYSQL_PASSWORD: migration-test-root
+          RAYCHI_TEST_POSTGRES_URL: jdbc:postgresql://127.0.0.1:5432/raychi_test
+          RAYCHI_TEST_POSTGRES_USER: raychi
+          RAYCHI_TEST_POSTGRES_PASSWORD: migration-test-pg

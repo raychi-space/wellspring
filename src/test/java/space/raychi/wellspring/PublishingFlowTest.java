@@ -14,6 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import space.raychi.wellspring.api.ApiException;
@@ -24,6 +25,7 @@ import space.raychi.wellspring.service.ArticleService;
 import space.raychi.wellspring.service.AssetService;
 import space.raychi.wellspring.service.TaxonomyService;
 
+@ContextConfiguration(initializers = PostgresTestInitializer.class)
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:raychi;MODE=MySQL;DB_CLOSE_DELAY=-1",
         "spring.datasource.username=sa",

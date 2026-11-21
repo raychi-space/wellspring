@@ -67,6 +67,17 @@ class DatabaseTransferTest {
         assertThatThrownBy(() -> DatabaseTransfer.run(false, env)).isInstanceOf(IllegalStateException.class);
     }
 
+    @Test
+    void legacyV15CopiesAvatarWithoutANickname() throws Exception {
+        Map<String, String> env = fixture(15);
+        DatabaseTransfer.run(true, env);
+        DatabaseTransfer.run(false, env);
+        var target = target(env);
+        assertThat(target.queryForObject("SELECT image_bytes FROM profile_avatar WHERE id=1", byte[].class))
+                .containsExactly(0, 1, -1, 0, 42);
+        assertThat(target.queryForObject("SELECT nickname FROM admin_account", String.class)).isNull();
+    }
+
     private Map<String, String> fixture(int version) throws Exception {
         String mysql = System.getenv("RAYCHI_MIGRATION_TEST_MYSQL_URL");
         String user = System.getenv("RAYCHI_MIGRATION_TEST_MYSQL_USER"), password = System.getenv("RAYCHI_MIGRATION_TEST_MYSQL_PASSWORD");

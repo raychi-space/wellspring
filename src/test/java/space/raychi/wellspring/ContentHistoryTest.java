@@ -22,6 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -37,6 +38,7 @@ import space.raychi.wellspring.service.ArticleService;
 import space.raychi.wellspring.service.AssetService;
 import space.raychi.wellspring.service.ContentHistoryService;
 
+@ContextConfiguration(initializers = PostgresTestInitializer.class)
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:h2:mem:history;MODE=MySQL;DB_CLOSE_DELAY=-1",
     "spring.datasource.username=sa", "spring.datasource.password=", "raychi.admin.username=test-admin",
@@ -46,12 +48,6 @@ import space.raychi.wellspring.service.ContentHistoryService;
 class ContentHistoryTest {
     @DynamicPropertySource static void config(DynamicPropertyRegistry registry) {
         registry.add("raychi.admin.password-hash", () -> new BCryptPasswordEncoder().encode("test-password"));
-        String mysql = System.getenv("RAYCHI_TEST_PUBLICATION_MYSQL_URL");
-        if (mysql != null && !mysql.isBlank()) {
-            registry.add("spring.datasource.url", () -> mysql);
-            registry.add("spring.datasource.username", () -> System.getenv("RAYCHI_TEST_MYSQL_USER"));
-            registry.add("spring.datasource.password", () -> System.getenv("RAYCHI_TEST_MYSQL_PASSWORD"));
-        }
     }
     @Autowired ArticleService contents;
     @Autowired ContentHistoryService history;

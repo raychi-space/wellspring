@@ -26,6 +26,10 @@ mvn test
 mvn package
 ```
 
+日常 [CI](.github/workflows/ci.yml) 使用独立的 PostgreSQL 17 测试库执行 `mvn -B verify`，检查名称为 `test (postgresql)`。在本地给 `RAYCHI_TEST_POSTGRES_URL`、`RAYCHI_TEST_POSTGRES_USER` 和 `RAYCHI_TEST_POSTGRES_PASSWORD` 配置一次性测试库，也可走同一测试路径。测试库名必须以 `_test` 结尾。
+
+[历史数据库迁移工作流](.github/workflows/legacy-migration.yml) 在迁移工具、SQL 或 Java 迁移、Maven 配置及其测试变更时运行，也可手动触发。它用隔离的 MySQL 8.4 和 PostgreSQL 17 验证历史 MySQL schema 升级及 V14–V16 的离线复制、指纹核对和失败回滚。历史库可用 Compose 的 `legacy-mysql` profile 启动，离线迁移仍使用 JAR 中的 `DatabaseTransfer --copy/--verify`。
+
 ### 管理员昵称
 
 `PUT /api/v1/auth/nickname` 使用当前管理员会话和 CSRF，接受 `{nickname}`。服务端去除首尾空白，要求 1–100 个 UTF-16 码元，并拒绝控制字符。成功返回更新后的会话；重复保存同一昵称也返回成功。昵称只供管理台显示，登录用户名、密码、凭据版本与已有会话保持原值。

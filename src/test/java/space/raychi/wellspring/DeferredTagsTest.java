@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import space.raychi.wellspring.dto.ArticleInput;
 import space.raychi.wellspring.dto.NameDto;
@@ -17,6 +18,7 @@ import space.raychi.wellspring.service.ArticleService;
 import space.raychi.wellspring.service.TaxonomyService;
 import space.raychi.wellspring.search.SearchState;
 
+@ContextConfiguration(initializers = PostgresTestInitializer.class)
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:h2:mem:deferredtags;MODE=MySQL;DB_CLOSE_DELAY=-1",
     "spring.datasource.username=sa", "spring.datasource.password=",
@@ -40,12 +42,6 @@ class DeferredTagsTest {
     @org.springframework.test.context.DynamicPropertySource
     static void credentials(org.springframework.test.context.DynamicPropertyRegistry registry) {
         registry.add("raychi.admin.password-hash", () -> new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("test-password"));
-        String mysql = System.getenv("RAYCHI_TEST_PUBLICATION_MYSQL_URL");
-        if (mysql != null && !mysql.isBlank()) {
-            registry.add("spring.datasource.url", () -> mysql);
-            registry.add("spring.datasource.username", () -> System.getenv("RAYCHI_TEST_MYSQL_USER"));
-            registry.add("spring.datasource.password", () -> System.getenv("RAYCHI_TEST_MYSQL_PASSWORD"));
-        }
     }
     @Autowired ArticleService contents;
     @Autowired TaxonomyService taxonomy;
